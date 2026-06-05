@@ -278,6 +278,68 @@ function computeGaugeMessages(data) {
   return { topMsg, topSubMsg, botMsg, botSubMsg, topTextColor, dR, dS };
 }
 
+function computeBallColor(data) {
+  const { price, semas } = data;
+  const allSemas = data.allSemas || semas;
+  const resist  = semas.filter(s=>s.value>=price).sort((a,b)=>a.value-b.value);
+  const support = semas.filter(s=>s.value<price).sort((a,b)=>b.value-a.value);
+  const isRising = s => { const r=(s.recent||[]).filter(x=>x!=null&&!isNaN(x)); return r.length>=2&&r[r.length-1]>r[r.length-2]; };
+  const tomorrowOf = s => s&&s.kdc!=null&&s.period ? r2(s.value+(price-s.kdc)/s.period) : s ? s.value : null;
+  const crossesPrice = s => { const tv=tomorrowOf(s); return (s.value>=price)!==(tv>=price); };
+  const hasBigWall = !!(data.prevHigh&&data.prevHigh.price>price&&(data.prevHigh.level==null||data.prevHigh.level>=1));
+  const buySemas = data.isBearStock ? allSemas.filter(s=>{const m=/SEMA(\d+)/.exec(s.label||'');return m?parseInt(m[1],10)<=9:false;}) : allSemas;
+  const _computeDynResist = () => {
+    const pv=data.recentPV; if(!pv||pv.length<2||!allSemas.length)return null;
+    const today=pv[pv.length-1],yday=pv[pv.length-2];
+    const upDownSemas=allSemas.filter(s=>s.value>price&&!isRising(s)).sort((a,b)=>a.value-b.value);
+    if(!upDownSemas.length)return null;
+    const first=upDownSemas[0];
+    if(today.close>yday.close&&!(today.lots<yday.lots)){
+      if((first.value-price)/price<=0.02){const second=upDownSemas.find(s=>(s.value-first.value)/first.value>0.02);return second||first;}
+    }
+    return first;
+  };
+  const _computeDynSupport = () => {
+    const pv=data.recentPV; if(!pv||pv.length<2||!allSemas.length)return null;
+    const today=pv[pv.length-1],yday=pv[pv.length-2];
+    const downUpSemas=buySemas.filter(s=>s.value<price&&isRising(s)).sort((a,b)=>b.value-a.value);
+    if(!downUpSemas.length)return null;
+    const first=downUpSemas[0];
+    if(today.close<yday.close&&!(today.lots<yday.lots)){
+      if((price-first.value)/price<=0.02){const second=downUpSemas.find(s=>(first.value-s.value)/first.value>0.02);return second||first;}
+    }
+    return first;
+  };
+  const _dynResist  = _computeDynResist();
+  const _dynSupport = _computeDynSupport();
+  const sellTarget = _dynResist&&!crossesPrice(_dynResist) ? _dynResist : resist.find(s=>!crossesPrice(s)&&!isRising(s));
+  const buyPool = hasBigWall ? support.slice(1) : support;
+  const _dynOK = _dynSupport&&_dynSupport.value<price;
+  const buyTargetUp = (_dynOK?_dynSupport:null)||buyPool.find(s=>s.value<price&&isRising(s)&&!crossesPrice(s))||null;
+  const gapAbovePct = s=>(s.value-price)/price;
+  const downCurveWall = resist.find(s=>!isRising(s)&&gapAbovePct(s)>=0.003&&gapAbovePct(s)<=0.015)||null;
+  const distSemaR    = sellTarget     ? Math.abs((sellTarget.value-price)/price)*100    : 999;
+  const distPrevHigh = data.prevHigh&&data.prevHigh.price>price ? Math.abs((data.prevHigh.price-price)/price)*100 : 999;
+  const distDownCurve= downCurveWall  ? Math.abs((downCurveWall.value-price)/price)*100 : 999;
+  const dR = Math.min(distSemaR, distPrevHigh, distDownCurve);
+  const dS = buyTargetUp ? Math.abs((price-buyTargetUp.value)/price)*100 : 999;
+  const nearestDist = Math.min(dR,dS), towardResist = dR<dS;
+  let ballColor, glowColor;
+  if (nearestDist>10) { ballColor='#3d9bd4'; glowColor='rgba(70,150,210,0.4)'; }
+  else {
+    const t=Math.max(0,Math.min(1,(10-nearestDist)/10));
+    if (towardResist) {
+      ballColor=`rgb(${Math.round(70-t*20)},${Math.round(185+t*25)},${Math.round(115-t*15)})`;
+      glowColor=`rgba(60,200,110,${0.35+t*0.4})`;
+    } else {
+      ballColor=`rgb(${Math.round(210+t*20)},${Math.round(80-t*25)},${Math.round(80-t*25)})`;
+      glowColor=`rgba(220,75,75,${0.35+t*0.4})`;
+    }
+  }
+  const blinkDur = nearestDist<=1?0.5:nearestDist<=3?1:nearestDist<=5?2:0;
+  return { ballColor, glowColor, blinkDur, sellTarget, buyTargetUp };
+}
+
 function WaterGauge({ data, gaugeW: W = 120 }) {
   const H       = Math.round(W * 3.125);
   const LEAD_W  = W * 2;
@@ -358,26 +420,7 @@ function WaterGauge({ data, gaugeW: W = 120 }) {
 
   const semaNum = label => label.replace('SEMA','');
 
-  const distSemaR   = sellTarget     ? Math.abs((sellTarget.value-price)/price)*100        : 999;
-  const distPrevHigh= data.prevHigh && data.prevHigh.price > price ? Math.abs((data.prevHigh.price-price)/price)*100 : 999;
-  const distDownCurve= downCurveWall ? Math.abs((downCurveWall.value-price)/price)*100     : 999;
-  const dR = Math.min(distSemaR, distPrevHigh, distDownCurve);
-  const dS = buyTargetUp ? Math.abs((price-buyTargetUp.value)/price)*100 : 999;
-  const nearestDist = Math.min(dR,dS), towardResist = dR < dS;
-
-  let ballColor, glowColor;
-  if (nearestDist > 10) { ballColor='#3d9bd4'; glowColor='rgba(70,150,210,0.4)'; }
-  else {
-    const t = Math.max(0,Math.min(1,(10-nearestDist)/10));
-    if (towardResist) {
-      ballColor=`rgb(${Math.round(70-t*20)},${Math.round(185+t*25)},${Math.round(115-t*15)})`;
-      glowColor=`rgba(60,200,110,${0.35+t*0.4})`;
-    } else {
-      ballColor=`rgb(${Math.round(210+t*20)},${Math.round(80-t*25)},${Math.round(80-t*25)})`;
-      glowColor=`rgba(220,75,75,${0.35+t*0.4})`;
-    }
-  }
-  const blinkDur = nearestDist<=1?0.5:nearestDist<=3?1:nearestDist<=5?2:0;
+  const { ballColor, glowColor, blinkDur } = computeBallColor(data);
   const ballY = toY(price);
 
   const pctText = v => { const d=((v-price)/price)*100,r=d.toFixed(1); return `${parseFloat(r)===0?'':(d>=0?'+':'')}${r==='-0.0'?'0.0':r}%`; };
@@ -722,33 +765,10 @@ function PriceRail({ data }) {
   const lo = minV - span * 0.12, hi = maxV + span * 0.12;
   const toX = v => `${Math.max(1, Math.min(99, ((v - lo) / (hi - lo)) * 100)).toFixed(1)}%`;
   const priceX = toX(price);
-  const supports = semas.filter(s => s.value < price).sort((a,b) => b.value - a.value);
-  const resists  = semas.filter(s => s.value >= price).sort((a,b) => a.value - b.value);
   const fmtV = v => v < 100 ? v.toFixed(1) : Math.round(v).toLocaleString('en-US');
+  const isRising = s => { const r=(s.recent||[]).filter(x=>x!=null&&!isNaN(x)); return r.length>=2&&r[r.length-1]>r[r.length-2]; };
 
-  // 圓點顏色：與水位計浮球相同邏輯
-  const pct = (a, b) => Math.abs((a - b) / b) * 100;
-  const dR = Math.min(
-    resists[0]        ? pct(resists[0].value, price) : 999,
-    ph?.price > price ? pct(ph.price, price)          : 999
-  );
-  const dS = supports[0] ? pct(price, supports[0].value) : 999;
-  const nearestDist = Math.min(dR, dS);
-  const towardResist = dR <= dS;
-  let ballColor, glowColor;
-  if (nearestDist > 10) {
-    ballColor = '#3d9bd4'; glowColor = 'rgba(70,150,210,0.4)';
-  } else {
-    const t = Math.max(0, Math.min(1, (10 - nearestDist) / 10));
-    if (towardResist) {
-      ballColor  = `rgb(${Math.round(70-t*20)},${Math.round(185+t*25)},${Math.round(115-t*15)})`;
-      glowColor  = `rgba(60,200,110,${(0.35+t*0.4).toFixed(2)})`;
-    } else {
-      ballColor  = `rgb(${Math.round(210+t*20)},${Math.round(80-t*25)},${Math.round(80-t*25)})`;
-      glowColor  = `rgba(220,75,75,${(0.35+t*0.4).toFixed(2)})`;
-    }
-  }
-  const blinkDur = nearestDist<=1?0.5:nearestDist<=3?1:nearestDist<=5?2:0;
+  const { ballColor, glowColor, blinkDur, sellTarget, buyTargetUp } = computeBallColor(data);
 
   return (
     <div style={{padding:'16px 0 14px',position:'relative',userSelect:'none'}}>
@@ -758,10 +778,12 @@ function PriceRail({ data }) {
       </div>
       <div style={{position:'relative',height:14,borderRadius:7,
         background:`linear-gradient(to right, rgba(26,107,53,0.8) 0%, rgba(42,125,79,0.8) ${priceX}, rgba(122,30,30,0.8) ${priceX}, rgba(74,16,16,0.8) 100%)`}}>
-        {semas.map(s => (
-          <div key={s.label} style={{position:'absolute',left:toX(s.value),top:-3,bottom:-3,width:2,
-            background:s.value < price ? '#4ade80' : '#ff6b6b',opacity:0.9,transform:'translateX(-50%)'}}/>
-        ))}
+        {semas.map(s => {
+          const isResist = s.value >= price;
+          const isKey = s.label === sellTarget?.label || s.label === buyTargetUp?.label;
+          return <div key={s.label} style={{position:'absolute',left:toX(s.value),top:isKey?-5:-3,bottom:isKey?-5:-3,width:isKey?3:2,
+            background:semaColor(s.label, isResist),opacity:isKey?1:0.8,transform:'translateX(-50%)',borderRadius:1}}/>;
+        })}
         {ph?.price > price && (
           <div style={{position:'absolute',left:toX(ph.price),top:-4,bottom:-4,width:2,
             background:'#fbbf24',opacity:0.85,transform:'translateX(-50%)'}}/>
@@ -772,17 +794,17 @@ function PriceRail({ data }) {
           border:'1.5px solid rgba(255,255,255,0.35)',zIndex:2,
           animation:blinkDur?`semaBlink ${blinkDur}s ease-in-out infinite`:'none'}}/>
       </div>
-      <div style={{position:'relative',height:14,marginTop:4}}>
-        {supports[0] && (
-          <div style={{position:'absolute',left:toX(supports[0].value),transform:'translateX(-50%)',
-            fontSize:10,color:'#4ade80',fontFamily:'monospace',whiteSpace:'nowrap'}}>
-            {fmtV(supports[0].value)}
+      <div style={{position:'relative',height:16,marginTop:4}}>
+        {buyTargetUp && (
+          <div style={{position:'absolute',left:toX(buyTargetUp.value),transform:'translateX(-50%)',
+            fontSize:10,fontWeight:800,color:semaColor(buyTargetUp.label, false),fontFamily:'monospace',whiteSpace:'nowrap'}}>
+            {isRising(buyTargetUp)?'▲':'▼'}{fmtV(buyTargetUp.value)}
           </div>
         )}
-        {resists[0] && (
-          <div style={{position:'absolute',left:toX(resists[0].value),transform:'translateX(-50%)',
-            fontSize:10,color:'#ff6b6b',fontFamily:'monospace',whiteSpace:'nowrap'}}>
-            {fmtV(resists[0].value)}
+        {sellTarget && (
+          <div style={{position:'absolute',left:toX(sellTarget.value),transform:'translateX(-50%)',
+            fontSize:10,fontWeight:800,color:semaColor(sellTarget.label, true),fontFamily:'monospace',whiteSpace:'nowrap'}}>
+            {isRising(sellTarget)?'▲':'▼'}{fmtV(sellTarget.value)}
           </div>
         )}
         {ph?.price > price && (
