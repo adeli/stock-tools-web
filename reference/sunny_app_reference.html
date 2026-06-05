@@ -1,0 +1,2649 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SUNNY APP</title>
+
+<!-- ============================================================ -->
+<!-- ★★★ 守護碼設定區 ★★★                                        -->
+<!-- 每月要換新守護碼時, 只改下面這一行引號中間的數字, 存檔後重傳 Netlify。 -->
+<!-- 例如要改成 071420, 就把 580523 改成 071420。                  -->
+<script>window.SUNNY_GUARD_CODE = '580523';</script>
+<!-- ↑ 守護碼改這裡(引號中間的數字)                               -->
+<!-- ============================================================ -->
+
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.4/babel.min.js"></script>
+<style>html,body{margin:0;padding:0;background:#0a0e14;-webkit-text-size-adjust:100%;}</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback
+} = React;
+const USER_OWN_PROXY = 'https://sunny-proxy.archman1227.workers.dev/?url=';
+const FIB_EMA_PERIODS = [6, 11, 17, 28, 45, 72, 117, 189, 305, 494, 799];
+const SMA_PERIODS = new Set([494, 799, 1292, 2091, 3383, 5474]);
+const ALL_SMA_MODE = true;
+const SEMA_LABELS = {
+  6: 'SEMA1',
+  11: 'SEMA2',
+  17: 'SEMA3',
+  28: 'SEMA4',
+  45: 'SEMA5',
+  72: 'SEMA6',
+  117: 'SEMA7',
+  189: 'SEMA8',
+  305: 'SEMA9',
+  494: 'SEMA10',
+  799: 'SEMA11',
+  1292: 'SEMA12',
+  2091: 'SEMA13',
+  3383: 'SEMA14',
+  5474: 'SEMA15'
+};
+const r2 = n => Math.round(n * 100) / 100;
+const TW_STOCK_NAMES = {
+  '2330': '台積電',
+  '2317': '鴻海',
+  '2454': '聯發科',
+  '2308': '台達電',
+  '2303': '聯電',
+  '2412': '中華電',
+  '2882': '國泰金',
+  '2881': '富邦金',
+  '2891': '中信金',
+  '2886': '兆豐金',
+  '2884': '玉山金',
+  '2885': '元大金',
+  '2892': '第一金',
+  '2880': '華南金',
+  '2883': '開發金',
+  '2887': '台新金',
+  '2890': '永豐金',
+  '2888': '新光金',
+  '2801': '彰銀',
+  '5880': '合庫金',
+  '1301': '台塑',
+  '1303': '南亞',
+  '1326': '台化',
+  '6505': '台塑化',
+  '1216': '統一',
+  '2002': '中鋼',
+  '2207': '和泰車',
+  '2105': '正新',
+  '9910': '豐泰',
+  '2912': '統一超',
+  '2382': '廣達',
+  '2357': '華碩',
+  '2395': '研華',
+  '3711': '日月光投控',
+  '2409': '友達',
+  '3481': '群創',
+  '2474': '可成',
+  '2376': '技嘉',
+  '2377': '微星',
+  '4938': '和碩',
+  '2356': '英業達',
+  '2353': '宏碁',
+  '6669': '緯穎',
+  '3231': '緯創',
+  '2324': '仁寶',
+  '2301': '光寶科',
+  '3008': '大立光',
+  '3017': '奇鋐',
+  '3034': '聯詠',
+  '3037': '欣興',
+  '3045': '台灣大',
+  '4904': '遠傳',
+  '2345': '智邦',
+  '2379': '瑞昱',
+  '3661': '世芯-KY',
+  '5269': '祥碩',
+  '6415': '矽力-KY',
+  '8046': '南電',
+  '3653': '健策',
+  '2603': '長榮',
+  '2609': '陽明',
+  '2615': '萬海',
+  '2610': '華航',
+  '2618': '長榮航',
+  '1101': '台泥',
+  '1102': '亞泥',
+  '2027': '大成鋼',
+  '2014': '中鴻',
+  '2015': '豐興',
+  '1402': '遠東新',
+  '1476': '儒鴻',
+  '1477': '聚陽',
+  '9921': '巨大',
+  '9904': '寶成',
+  '5871': '中租-KY',
+  '3443': '創意',
+  '6770': '力積電',
+  '6531': '愛普*',
+  '8299': '群聯',
+  '4966': '譜瑞-KY',
+  '3529': '力旺',
+  '3406': '玉晶光',
+  '4958': '臻鼎-KY',
+  '6488': '環球晶',
+  '2344': '華邦電',
+  '2451': '創見',
+  '2408': '南亞科',
+  '6239': '力成',
+  '8150': '南茂',
+  '2049': '上銀',
+  '1590': '亞德客-KY',
+  '2059': '川湖',
+  '1519': '華城',
+  '1513': '中興電',
+  '1503': '士電',
+  '1504': '東元',
+  '6285': '啟碁',
+  '2360': '致茂',
+  '3552': '同致'
+};
+const lookupCNName = code => {
+  const c = code.replace(/\.TW(O)?$/i, '');
+  return TW_STOCK_NAMES[c] || null;
+};
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const fetchCNName = async (codeKey, fetchFn) => {
+  for (const mkt of ['tse', 'otc']) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const qr = await fetchFn(`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${mkt}_${codeKey}.tw&json=1&delay=0&nocache=${Date.now()}`, 1, null);
+        const nm = qr?.msgArray?.[0]?.n;
+        if (nm && /[\u4e00-\u9fff]/.test(nm)) return nm.trim();
+        break;
+      } catch (e) {
+        await sleep(350);
+      }
+    }
+  }
+  return null;
+};
+const detectInstrumentType = rawCode => {
+  const cleaned = rawCode.replace(/\.TW(O)?$/i, '');
+  const up = cleaned.toUpperCase();
+  if (up === '0000' || up === 'C000') return 'INDEX_TW';
+  if (!/^\d+$/.test(cleaned)) return 'STOCK_US';
+  const len = cleaned.length;
+  if (len === 4 && cleaned.startsWith('00')) return 'ETF';
+  if (len >= 5) return 'WARRANT';
+  return 'STOCK_TW';
+};
+const TW_INDEX_MAP = {
+  '0000': {
+    sym: '^TWII',
+    name: '加權指數'
+  },
+  'C000': {
+    sym: '^TWOII',
+    name: '櫃買指數'
+  }
+};
+const fetchWithTimeout = async (url, options = {}, timeoutMs = 3000) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+};
+const proxyCooldown = new Map();
+const fetchWithExtremePenetration = async (targetUrl, retries = 1, onProgress) => {
+  const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
+  const DIRECT_TIMEOUT = isMobile ? 2500 : 1500;
+  const PROXY_TIMEOUT = isMobile ? 9000 : 4000;
+  try {
+    if (onProgress) onProgress('嘗試直接連線...');
+    const directRes = await fetchWithTimeout(targetUrl, {
+      cache: 'no-store'
+    }, DIRECT_TIMEOUT);
+    if (directRes.ok) {
+      return await directRes.json();
+    }
+  } catch (e) {}
+  const proxies = [];
+  if (USER_OWN_PROXY) {
+    proxies.push({
+      name: '★ 自架 CF Worker',
+      url: `${USER_OWN_PROXY}${USER_OWN_PROXY.includes('?') ? '' : '?url='}${encodeURIComponent(targetUrl)}`,
+      parse: async res => await res.json()
+    });
+  }
+  proxies.push({
+    name: 'corsproxy.io',
+    url: `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+    parse: async r => {
+      const t = await r.text();
+      if (!t || t[0] !== '{') throw new Error('非JSON');
+      return JSON.parse(t);
+    }
+  }, {
+    name: 'allorigins(raw)',
+    url: `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+    parse: async r => {
+      const t = await r.text();
+      if (!t || t[0] !== '{') throw new Error('非JSON');
+      return JSON.parse(t);
+    }
+  }, {
+    name: 'allorigins(get)',
+    url: `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
+    parse: async r => {
+      const j = await r.json();
+      if (!j.contents) throw new Error('empty');
+      return JSON.parse(j.contents);
+    }
+  }, {
+    name: 'codetabs',
+    url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+    parse: async r => {
+      const t = await r.text();
+      if (!t || t[0] !== '{') throw new Error('限流或非JSON');
+      return JSON.parse(t);
+    }
+  });
+  let lastError = '';
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    for (let i = 0; i < proxies.length; i++) {
+      const proxy = proxies[i];
+      const cd = proxyCooldown.get(proxy.name);
+      if (cd && Date.now() < cd) continue;
+      try {
+        if (onProgress) onProgress(`連線中 (${i + 1}/${proxies.length})...`);
+        const res = await fetchWithTimeout(proxy.url, {
+          cache: 'no-store'
+        }, PROXY_TIMEOUT);
+        if (!res.ok) {
+          if (res.status === 429 || res.status === 503) proxyCooldown.set(proxy.name, Date.now() + 60000);
+          lastError = `${proxy.name}: HTTP ${res.status}`;
+          continue;
+        }
+        const data = await proxy.parse(res);
+        if (!data || typeof data !== 'object' || !(Array.isArray(data) || 'chart' in data || 'quoteResponse' in data || 'msgArray' in data)) {
+          lastError = `${proxy.name}: 格式錯誤`;
+          continue;
+        }
+        return data;
+      } catch (e) {
+        if (e.name === 'AbortError') proxyCooldown.set(proxy.name, Date.now() + 30000);
+        lastError = `${proxy.name}: ${e.message}`;
+        continue;
+      }
+    }
+    if (attempt < retries) await new Promise(r => setTimeout(r, 500));
+  }
+  if (onProgress) onProgress(`連線失敗：${lastError}`);
+  return {
+    __error: lastError || '所有節點皆無回應'
+  };
+};
+const fetchIntradayVolRatio = async qc => {
+  try {
+    const r = await fetchWithExtremePenetration(`https://query2.finance.yahoo.com/v8/finance/chart/${qc}?range=5d&interval=5m&nocache=${Date.now()}`, 1, null);
+    const res = r?.chart?.result?.[0];
+    if (!res || !res.timestamp) return null;
+    const ts = res.timestamp;
+    const vol = res.indicators?.quote?.[0]?.volume || [];
+    const gmtoff = res.meta?.gmtoffset || 0;
+    const rows = [];
+    for (let i = 0; i < ts.length; i++) if (vol[i] != null) rows.push({
+      t: ts[i],
+      vol: vol[i]
+    });
+    if (rows.length < 6) return null;
+    const days = {};
+    for (const x of rows) {
+      const key = new Date((x.t + gmtoff) * 1000).toISOString().slice(0, 10);
+      (days[key] = days[key] || []).push(x);
+    }
+    const keys = Object.keys(days).sort();
+    if (keys.length < 2) return null;
+    const today = days[keys[keys.length - 1]];
+    const prev = days[keys[keys.length - 2]];
+    const openMin = gmtoff >= 0 ? 9 * 60 : 9 * 60 + 30;
+    const localMin = t => {
+      const d = new Date((t + gmtoff) * 1000);
+      return d.getUTCHours() * 60 + d.getUTCMinutes();
+    };
+    const winVol = (dayRows, mins) => {
+      if (!dayRows.length) return 0;
+      let i0 = 0;
+      while (i0 < dayRows.length && (localMin(dayRows[i0].t) < openMin || !(dayRows[i0].vol > 0))) i0++;
+      if (i0 >= dayRows.length) return 0;
+      const start = dayRows[i0].t;
+      const limit = start + mins * 60;
+      let s = 0;
+      for (let i = i0; i < dayRows.length; i++) {
+        if (dayRows[i].t < limit) s += dayRows[i].vol || 0;
+      }
+      return s;
+    };
+    const mk = mins => {
+      const a = winVol(today, mins),
+        b = winVol(prev, mins);
+      return b > 0 ? {
+        today: a,
+        prev: b,
+        ratio: a / b
+      } : null;
+    };
+    const r5 = mk(5),
+      r15 = mk(15),
+      r30 = mk(30);
+    const firstBarVol = dayRows => {
+      let i0 = 0;
+      while (i0 < dayRows.length && (localMin(dayRows[i0].t) < openMin || !(dayRows[i0].vol > 0))) i0++;
+      return i0 < dayRows.length ? dayRows[i0].vol : null;
+    };
+    const todayFirstBar = firstBarVol(today);
+    const todayMaxBar = today.reduce((m, x) => Math.max(m, x.vol || 0), 0);
+    const prevFullVol = prev.reduce((s, x) => s + x.vol, 0);
+    const estBy = r => r && prevFullVol > 0 ? Math.round(prevFullVol * r.ratio / 1000) : null;
+    const estTodayVol = r30 && prevFullVol > 0 ? Math.round(prevFullVol * r30.ratio) : null;
+    return {
+      r5: r5 ? r5.ratio : null,
+      r15: r15 ? r15.ratio : null,
+      r30: r30 ? r30.ratio : null,
+      est5: estBy(r5),
+      est15: estBy(r15),
+      est30: estBy(r30),
+      estTodayVolLots: estTodayVol != null ? Math.round(estTodayVol / 1000) : null,
+      prevFullVolLots: Math.round(prevFullVol / 1000),
+      todayBars: today.length,
+      firstBarLots: todayFirstBar != null ? Math.round(todayFirstBar / 1000) : null,
+      maxBarLots: Math.round(todayMaxBar / 1000)
+    };
+  } catch (e) {
+    return null;
+  }
+};
+const breakoutSellAdvice = data => {
+  if (!data || !data.isNewHigh60) return null;
+  const iv = data.intraday;
+  let mag5 = null,
+    wmag = null,
+    volSrc = null;
+  if (iv && iv.r5 != null) {
+    mag5 = iv.r5;
+    const r15 = iv.r15 != null ? iv.r15 : iv.r5;
+    const r30 = iv.r30 != null ? iv.r30 : r15;
+    wmag = iv.r5 * 0.6 + r15 * 0.25 + r30 * 0.15;
+    volSrc = 'intraday';
+  } else if (iv && (iv.r15 != null || iv.r30 != null)) {
+    mag5 = iv.r15 != null ? iv.r15 : iv.r30;
+    wmag = mag5;
+    volSrc = 'intraday';
+  } else if (data.vol45Ratio != null) {
+    mag5 = data.vol45Ratio;
+    wmag = data.vol45Ratio;
+    volSrc = 'daily';
+  }
+  const liveTag = '';
+  let volTier;
+  if (mag5 == null) volTier = 'unknown';else if (volSrc === 'daily') {
+    if (mag5 >= 3) volTier = 'surge';else if (mag5 >= 2) volTier = 'up';else if (mag5 >= 0.7) volTier = 'flat';else volTier = 'down';
+  } else {
+    if (mag5 >= 2) volTier = 'surge';else if (mag5 >= 1.5) volTier = 'up';else if (mag5 >= 0.7) volTier = 'flat';else volTier = 'down';
+  }
+  const dayBlowoff = volSrc === 'daily' && mag5 != null && mag5 >= 3 || iv && iv.r30 != null && iv.r30 >= 5;
+  const closeLow = data.closePos != null && data.closePos <= 0.23;
+  if (volTier === 'surge' && dayBlowoff && closeLow) {
+    return {
+      level: 'top',
+      tier: 'full',
+      volTier,
+      mag5,
+      wmag,
+      volSrc,
+      liveTag,
+      reason: '爆天量又收長上影、收很低 → 多殺多、可能見頂，這不是回測短均能交代的，恐須休息一陣子，建議全數停利'
+    };
+  }
+  let tier, reason;
+  if (volTier === 'surge') {
+    tier = 'partial';
+    reason = volSrc === 'daily' ? '量爆增（今日量≥VOL45×3），多方力道強、續攻機會較大；但創高日常收長上影，建議分批停利' : '開盤量爆增（主力企圖強），續攻機會較大；但創高日人人想停利、常收長上影，建議分批停利';
+  } else if (volTier === 'up') {
+    tier = 'partial';
+    reason = volSrc === 'daily' ? '量增（今日量≥VOL45×2），價漲量增是好事；但創高日常收長上影，建議分批停利' : '開盤量明顯放大，多方有力；創高日常收長上影，建議分批停利';
+  } else if (volTier === 'flat') {
+    tier = 'partial';
+    reason = volSrc === 'daily' ? '量能普通（未達量增門檻），力道一般；創高日宜分批停利' : '開盤量普通，力道一般；創新高宜分批停利';
+  } else if (volTier === 'down') {
+    tier = 'partial';
+    reason = volSrc === 'daily' ? '量縮創高（可能跳空惜售=強勢、或主力暫歇=觀望），需觀察隔日量能；建議分批停利留餘地' : '開盤量縮創高（可能跳空惜售或主力暫歇），需觀察盤中量能；建議分批停利';
+  } else {
+    tier = 'partial';
+    reason = '創新高，創高日常因人人停利收長上影，建議分批停利';
+  }
+  return {
+    level: 'normal',
+    tier,
+    reason,
+    volTier,
+    mag5,
+    wmag,
+    volSrc,
+    liveTag
+  };
+};
+const breakdownAdvice = (data, redLight, nextLabel, nearRisingBigBottom, nearResistPct, s2s3Down3) => {
+  if (!data || !data.belowSema3) return null;
+  const bothDown = data.s1Down && data.s2Down;
+  if (redLight) {
+    const lbl = nextLabel || '下一條支撐';
+    return {
+      strong: false,
+      brake: true,
+      msg: `連續下跌但已逼近${lbl} · 留意反彈`,
+      reason: `雖連續跌破<支撐3>，但現價已貼近${lbl}強支撐區，此處易有反彈、不宜追殺低點；先觀察${lbl}守不守得住，爆量跌破再議。`
+    };
+  }
+  if (bothDown && nearRisingBigBottom) {
+    return {
+      strong: false,
+      msg: `已跌${data.breakDays}天 · 接近長均大底，留意是否止穩`,
+      reason: '雖短均下彎，但已接近上揚的長天期均線（長線大底支撐）；此處不宜追殺低點，先觀察是否止穩、有無帶量轉強。'
+    };
+  }
+  if (bothDown) {
+    if (data.breakDays > 3) {
+      return {
+        strong: true,
+        msg: `收盤已跌破<支撐3>超過3天 · 若有反彈應減碼`,
+        reason: '連3天跌破<支撐3>即為出場訊號，現已逾期；短均下彎、反彈易被壓回，不宜追殺低點，宜趁反彈分批減碼，待站回<支撐3>再議。'
+      };
+    }
+    return {
+      strong: true,
+      msg: `收盤連續${data.breakDays}天跌破<支撐3> · 建議反彈減碼或停利`,
+      reason: '支撐1已下彎轉為壓力1，支撐2已下彎轉為壓力2，反彈時易被壓回；若非帶量上攻，否則建議於反彈時減碼或停利'
+    };
+  }
+  if (s2s3Down3) {
+    const lbl = nextLabel || '下方支撐';
+    return {
+      strong: false,
+      msg: `短均皆已下彎成壓力 · 觀察${lbl}是否能止跌`,
+      reason: `<壓力2>、<壓力3>等短均接連下彎、壓在現價上方，反彈無力；觀察${lbl}(現價下方第一條向上支撐)能否止跌橫盤，爆量跌破則趨勢續弱。`
+    };
+  }
+  const REBOUND_PCT = 6;
+  if (!data.s1Down && nearResistPct != null && nearResistPct <= REBOUND_PCT) {
+    return {
+      strong: true,
+      msg: `破底後反彈至壓力區 · 反彈減碼`,
+      reason: '已跌破<支撐3>、但短均已勾上反彈，現價反彈至接近上方壓力；反彈如煙火、易被壓回，宜趁接近壓力分批減碼，不宜期待一路上攻。'
+    };
+  }
+  return {
+    strong: false,
+    msg: data.breakDays > 5 ? `已連續多日跌破<支撐3> · 留意轉弱` : `收盤連續${data.breakDays}天跌破<支撐3> · 留意轉弱`,
+    reason: '已連續跌破短中均線，趨勢轉弱，宜留意；若短均接連下彎、反彈無量，宜考慮出場'
+  };
+};
+const calcSEMASeries = (closes, allSMA = false) => {
+  const series = {};
+  FIB_EMA_PERIODS.forEach(p => {
+    series[p] = [];
+  });
+  const cur = {};
+  FIB_EMA_PERIODS.forEach(p => {
+    cur[p] = null;
+  });
+  const runSum = {};
+  FIB_EMA_PERIODS.forEach(p => {
+    runSum[p] = 0;
+  });
+  for (let i = 0; i < closes.length; i++) {
+    const c = closes[i];
+    FIB_EMA_PERIODS.forEach(p => {
+      const useSMA = allSMA || SMA_PERIODS.has(p);
+      if (useSMA) {
+        runSum[p] += c;
+        if (i >= p) runSum[p] -= closes[i - p];
+        series[p].push(i + 1 >= p ? runSum[p] / p : null);
+      } else {
+        const k = 2 / (p + 1);
+        cur[p] = cur[p] === null ? c : (c - cur[p]) * k + cur[p];
+        series[p].push(i + 1 >= p ? cur[p] : null);
+      }
+    });
+  }
+  return series;
+};
+const latestOf = arr => !arr || arr.length === 0 ? null : arr[arr.length - 1];
+const SEMA_COLORS = {
+  SEMA1: '#ff4d4d',
+  SEMA2: '#ff8c42',
+  SEMA3: '#ffb627',
+  SEMA4: '#e8d44d',
+  SEMA5: '#7ed957',
+  SEMA6: '#2ecc71',
+  SEMA7: '#1abc9c',
+  SEMA8: '#2ac0d4',
+  SEMA9: '#3498db',
+  SEMA10: '#4d7cff',
+  SEMA11: '#6c5ce7',
+  SEMA12: '#9b59b6',
+  SEMA13: '#c44dca',
+  SEMA14: '#e84393',
+  SEMA15: '#d63a6a'
+};
+const KEY_SEMA_SET = new Set(['SEMA3', 'SEMA5', 'SEMA8', 'SEMA11']);
+const semaColor = (label, isResist) => SEMA_COLORS[label] || (isResist ? '#b83838' : '#2c8050');
+function WaterGauge({
+  data,
+  holdings,
+  onMsg
+}) {
+  const {
+    price,
+    semas
+  } = data;
+  const [showDetail, setShowDetail] = useState(false);
+  const VIS = 17;
+  const yVals = [price];
+  if (data.yHi17 != null) yVals.push(data.yHi17);
+  if (data.yLo17 != null) yVals.push(data.yLo17);
+  semas.forEach(s => {
+    const r = (s.recent || []).slice(-VIS).filter(v => v != null && !isNaN(v));
+    (r.length ? r : [s.value]).forEach(v => yVals.push(v));
+  });
+  const maxV = Math.max(...yVals);
+  const minV = Math.min(...yVals);
+  const span = maxV - minV || price * 0.1;
+  const padV = span * 0.06;
+  const top = maxV + padV;
+  const bottom = minV - padV;
+  const range = top - bottom;
+  const W = 120,
+    H = 375;
+  const LEAD_W = 240;
+  const xL = 12,
+    xR = W - 12;
+  const toY = v => (top - v) / range * (H - 24) + 12;
+  const toYClamped = v => Math.max(8, Math.min(H - 8, toY(v)));
+  const allSemas = data.allSemas || semas;
+  const semaSeq = lbl => {
+    const m = /SEMA(\d+)/.exec(lbl || '');
+    return m ? parseInt(m[1], 10) : 0;
+  };
+  const buySemas = data.isBearStock ? allSemas.filter(s => semaSeq(s.label) <= 9) : allSemas;
+  const resist = semas.filter(s => s.value >= price).sort((a, b) => a.value - b.value);
+  const support = buySemas.filter(s => s.value < price).sort((a, b) => b.value - a.value);
+  const tomorrowOf = s => s && s.kdc != null && s.period ? r2(s.value + (price - s.kdc) / s.period) : s ? s.value : null;
+  const crossesPrice = s => {
+    const tv = tomorrowOf(s);
+    return s.value >= price !== tv >= price;
+  };
+  const isRising = s => {
+    const r = (s.recent || []).filter(x => x != null && !isNaN(x));
+    if (r.length < 2) return false;
+    return r[r.length - 1] > r[r.length - 2];
+  };
+  const computeDynamicResist = () => {
+    const FAIL_PCT = 0.02;
+    const pv = data.recentPV;
+    if (!pv || pv.length < 2 || !allSemas.length) return null;
+    const today = pv[pv.length - 1],
+      yday = pv[pv.length - 2];
+    const priceUp = today.close > yday.close;
+    const volDown = today.lots < yday.lots;
+    const upDownSemas = allSemas.filter(s => s.value > price && !isRising(s)).sort((a, b) => a.value - b.value);
+    if (!upDownSemas.length) return null;
+    const first = upDownSemas[0];
+    if (priceUp && !volDown) {
+      const distPct = (first.value - price) / price;
+      if (distPct <= FAIL_PCT) {
+        const second = upDownSemas.find(s => (s.value - first.value) / first.value > 0.02);
+        return second || first;
+      }
+    }
+    return first;
+  };
+  const dynamicResist = computeDynamicResist();
+  const sellTarget = dynamicResist && !crossesPrice(dynamicResist) ? dynamicResist : resist.find(s => !crossesPrice(s) && !isRising(s));
+  const buyTarget = support[0];
+  const hasBigWall = !!(data.prevHigh && data.prevHigh.price > price && (data.prevHigh.level == null || data.prevHigh.level >= 1));
+  const buyPool = hasBigWall ? support.slice(1) : support;
+  const computeDynamicSupport = () => {
+    const FAIL_PCT = 0.02;
+    const pv = data.recentPV;
+    if (!pv || pv.length < 2 || !allSemas.length) return null;
+    const today = pv[pv.length - 1],
+      yday = pv[pv.length - 2];
+    const priceDown = today.close < yday.close;
+    const volDown = today.lots < yday.lots;
+    const downUpSemas = buySemas.filter(s => s.value < price && isRising(s)).sort((a, b) => b.value - a.value);
+    if (!downUpSemas.length) return null;
+    const first = downUpSemas[0];
+    if (priceDown && !volDown) {
+      const distPct = (price - first.value) / price;
+      if (distPct <= FAIL_PCT) {
+        const second = downUpSemas.find(s => (first.value - s.value) / first.value > 0.02);
+        return second || first;
+      }
+    }
+    return first;
+  };
+  const dynamicSupport = computeDynamicSupport();
+  const _dynOK = dynamicSupport && dynamicSupport.value < price;
+  const buyTargetUp = (_dynOK ? dynamicSupport : null) || buyPool.find(s => s.value < price && isRising(s) && !crossesPrice(s)) || null;
+  const backupSupport = buyTargetUp ? buyPool.filter(s => s.label !== buyTargetUp.label && s.value < buyTargetUp.value && isRising(s) && !crossesPrice(s)).sort((a, b) => b.value - a.value)[0] || null : null;
+  const gapAbovePct = s => (s.value - price) / price;
+  const downCurveWall = resist.find(s => !isRising(s) && gapAbovePct(s) >= 0.003 && gapAbovePct(s) <= 0.015) || null;
+  const semaNum = label => label.replace('SEMA', '');
+  const distSemaR = sellTarget ? Math.abs((sellTarget.value - price) / price) * 100 : 999;
+  const distPrevHigh = data.prevHigh && data.prevHigh.price > price ? Math.abs((data.prevHigh.price - price) / price) * 100 : 999;
+  const distDownCurve = downCurveWall ? Math.abs((downCurveWall.value - price) / price) * 100 : 999;
+  const dR = Math.min(distSemaR, distPrevHigh, distDownCurve);
+  const dS = buyTargetUp ? Math.abs((price - buyTargetUp.value) / price) * 100 : 999;
+  const nearestDist = Math.min(dR, dS);
+  const towardResist = dR < dS;
+  let ballColor, glowColor;
+  if (nearestDist > 10) {
+    ballColor = '#3d9bd4';
+    glowColor = 'rgba(70,150,210,0.4)';
+  } else {
+    const t = Math.max(0, Math.min(1, (10 - nearestDist) / 10));
+    if (towardResist) {
+      ballColor = `rgb(${Math.round(70 - t * 20)}, ${Math.round(185 + t * 25)}, ${Math.round(115 - t * 15)})`;
+      glowColor = `rgba(60,200,110,${0.35 + t * 0.4})`;
+    } else {
+      ballColor = `rgb(${Math.round(210 + t * 20)}, ${Math.round(80 - t * 25)}, ${Math.round(80 - t * 25)})`;
+      glowColor = `rgba(220,75,75,${0.35 + t * 0.4})`;
+    }
+  }
+  let blinkDur = 0;
+  if (nearestDist <= 1) blinkDur = 0.5;else if (nearestDist <= 3) blinkDur = 1;else if (nearestDist <= 5) blinkDur = 2;
+  const ballY = toY(price);
+  const bandH = 8;
+  const pctText = v => {
+    const d = (v - price) / price * 100;
+    const r = d.toFixed(1);
+    return `${parseFloat(r) === 0 ? '' : d >= 0 ? '+' : ''}${r === '-0.0' ? '0.0' : r}%`;
+  };
+  const diffText = v => {
+    const d = v - price;
+    return `(${d >= 0 ? '+' : ''}${d.toFixed(d < 0 ? Math.abs(d) < 50 ? 1 : 0 : d < 50 ? 1 : 0)}元)`;
+  };
+  const hasHold = holdings && holdings.length > 0;
+  let totLots = 0,
+    totCost = 0,
+    totPnl = 0;
+  if (hasHold) {
+    holdings.forEach(h => {
+      totLots += h.lots;
+      totCost += h.cost * h.lots * 1000;
+      totPnl += (price - h.cost) * h.lots * 1000;
+    });
+  }
+  const totPnlPct = hasHold && totCost > 0 ? totPnl / totCost * 100 : 0;
+  const totGain = totPnl >= 0;
+  let btnColor;
+  if (!hasHold) {
+    btnColor = '#3d9bd4';
+  } else {
+    const t = Math.max(0, Math.min(1, Math.abs(totPnlPct) / 20));
+    btnColor = totGain ? `rgb(${Math.round(225 + t * 20)}, ${Math.round(90 - t * 30)}, ${Math.round(90 - t * 30)})` : `rgb(${Math.round(60 + t * 5)}, ${Math.round(180 - t * 15)}, ${Math.round(115 - t * 10)})`;
+  }
+  const noResist = !allSemas.some(s => s.value >= price);
+  const seaWideOpen = noResist && data.steadyAbove;
+  const justRecovered = noResist && !data.steadyAbove && data.aboveDays > 0;
+  const noSupport = !allSemas.some(s => s.value < price);
+  const tR = Math.max(0, Math.min(1, (10 - dR) / 10));
+  const topBarColor = seaWideOpen ? 'rgba(120, 195, 255, 0.85)' : justRecovered ? 'rgba(180, 160, 90, 0.3)' : noResist ? 'rgba(180, 160, 90, 0.3)' : `rgba(${Math.round(30 + tR * 15)}, ${Math.round(110 + tR * 30)}, ${Math.round(55 + tR * 15)}, ${0.15 + tR * 0.35})`;
+  const topTextColor = seaWideOpen ? '#0a3a6e' : noResist ? '#e0c878' : '#9be0b0';
+  const tS = Math.max(0, Math.min(1, (10 - dS) / 10));
+  const botBarColor = noSupport ? 'rgba(120, 195, 255, 0.85)' : `rgba(${Math.round(130 + tS * 40)}, ${Math.round(40 - tS * 20)}, ${Math.round(40 - tS * 20)}, ${0.15 + tS * 0.35})`;
+  const botTextColor = noSupport ? '#0a3a6e' : '#e89a9a';
+  const tomorrowVal = tomorrowOf;
+  const sellDist = sellTarget ? sellTarget.value - price : null;
+  const buyDist = buyTargetUp ? price - buyTargetUp.value : null;
+  const sellTomorrow = sellTarget ? tomorrowVal(sellTarget) : null;
+  const buyTomorrow = buyTargetUp ? tomorrowVal(buyTargetUp) : null;
+  const backupTomorrow = backupSupport ? tomorrowVal(backupSupport) : null;
+  const sellDistEst = sellTarget ? sellTomorrow - price : null;
+  const dREst = sellTarget ? Math.abs((sellTomorrow - price) / price) * 100 : 999;
+  const buyDistEst = buyTargetUp ? price - buyTomorrow : null;
+  const dSEst = buyTargetUp ? Math.abs((price - buyTomorrow) / price) * 100 : 999;
+  const nearestDistEst = Math.min(dREst, dSEst);
+  const towardResistEst = dREst < dSEst;
+  const fmtP = v => v == null ? '' : v.toLocaleString('en-US', {
+    minimumFractionDigits: v < 100 ? 1 : 0,
+    maximumFractionDigits: v < 100 ? 1 : 0
+  });
+  const brkAdvice = breakoutSellAdvice(data);
+  const nearSupport = !towardResistEst && nearestDistEst <= 5;
+  const redLight = nearSupport;
+  const nextSupLabel = buyTargetUp ? `<支撐${semaNum(buyTargetUp.label)}>` : null;
+  const BIG_BRO = new Set(['SEMA11']);
+  const nearRisingBigBottom = allSemas.some(s => BIG_BRO.has(s.label) && s.value < price && (price - s.value) / price * 100 <= 5 && isRising(s));
+  const nearResistPct = resist.length ? (resist[0].value - price) / price * 100 : null;
+  const _down3d = obj => {
+    const r = obj ? (obj.recent || []).filter(x => x != null && !isNaN(x)) : [];
+    return r.length >= 3 && r[r.length - 1] < r[r.length - 3];
+  };
+  const _s2o = allSemas.find(s => s.label === 'SEMA2'),
+    _s3o = allSemas.find(s => s.label === 'SEMA3');
+  const s2s3Down3 = _down3d(_s2o) && _down3d(_s3o);
+  const bdAdvice = breakdownAdvice(data, redLight, nextSupLabel, nearRisingBigBottom, nearResistPct, s2s3Down3);
+  const sema3Obj = allSemas.find(s => s.label === 'SEMA3');
+  const sema8Obj = allSemas.find(s => s.label === 'SEMA8');
+  const bias17 = sema3Obj ? (price - sema3Obj.value) / sema3Obj.value * 100 : 0;
+  const sema8Down = sema8Obj ? !isRising(sema8Obj) : false;
+  const sema1Obj = allSemas.find(s => s.label === 'SEMA1');
+  const sema2Obj = allSemas.find(s => s.label === 'SEMA2');
+  const s3DownEW = sema3Obj ? !isRising(sema3Obj) : false;
+  const anyShortDown = data.s1Down || data.s2Down || s3DownEW;
+  const offHighPct = data.high60 && data.high60 > 0 ? (data.high60 - price) / data.high60 * 100 : 0;
+  const earlyWeakness = !data.belowSema3 && data.breakDays >= 1 && data.breakDays <= 2 && anyShortDown && offHighPct >= 8 ? `高檔轉弱 · 已跌破<支撐3>，短均轉弱、建議反彈時應停利或減碼` : null;
+  let earlyPullback = null;
+  const _pv = data.recentPV;
+  if (!data.belowSema3 && data.breakDays === 0 && offHighPct >= 8 && data.s1Down && _pv && _pv.length >= 2) {
+    const _td = _pv[_pv.length - 1],
+      _yd = _pv[_pv.length - 2];
+    const _priceDown = _td.close < _yd.close;
+    const _volUp = _td.lots > _yd.lots;
+    if (_priceDown && _volUp) {
+      const _below = allSemas.filter(s => s.value < price).sort((a, b) => b.value - a.value);
+      const _nowSup = _below[0] ? `<支撐${semaNum(_below[0].label)}>` : '<支撐>';
+      earlyPullback = `回測${_nowSup} 價跌量增，高檔恐轉弱，留意後續是否量縮止跌，否則應及早停利或減碼。`;
+    }
+  }
+  const _s1r = sema1Obj ? (sema1Obj.recent || []).filter(x => x != null && !isNaN(x)) : [];
+  const _s1peaked = _s1r.length >= 3 && _s1r[_s1r.length - 2] >= _s1r[_s1r.length - 1] && _s1r[_s1r.length - 2] >= _s1r[_s1r.length - 3];
+  const _s1down3 = _s1r.length >= 3 && _s1r[_s1r.length - 1] < _s1r[_s1r.length - 3];
+  const sema1Down = _s1peaked || _s1down3;
+  const sema1Val = sema1Obj ? sema1Obj.value : null;
+  const closeBelowSema1 = sema1Down && sema1Val != null ? price < sema1Val : false;
+  const headTurnSell = sema1Down && closeBelowSema1 && data.headPriceDown13 ? `高檔做頭轉弱 · 收盤跌破下彎的<壓力1>(短均轉壓)，近13天量價背離${data.divergePct13 != null ? data.divergePct13 : '—'}%，反彈無力，建議反彈時停利或減碼` : null;
+  const _ss3Rising = sema3Obj ? isRising(sema3Obj) : false;
+  const reboundUnderPressure = sema3Obj && price > sema3Obj.value && _ss3Rising && sema1Down && sema1Val != null && price < sema1Val && offHighPct >= 8 ? `收盤已守住向上的<支撐3> · <壓力1> 已下彎、建議反彈至<壓力1>時應減碼` : null;
+  const bigBroAbove = allSemas.filter(s => BIG_BRO.has(s.label) && s.value > price).length;
+  const clearOut = bias17 > 10 && sema8Down && bigBroAbove >= 1;
+  const clearOutMsg = clearOut ? '上方壓力沉重 · 建議全部出清' : null;
+  const clearOutSub = clearOut ? `急漲未回測、乖離過大（${bias17.toFixed(1)}%），多空線仍下彎，頭上還有${bigBroAbove}條長均重壓；此為噴出反彈非真回升，宜全部出清。` : null;
+  const ph = data.prevHigh;
+  const phLots = ph ? (data.isTw ? ph.lots : ph.lots * 1000).toLocaleString('en-US') : '';
+  const phUnit = data.isTw ? '張' : '股';
+  const phLevel = ph ? ph.level == null ? 1 : ph.level : 1;
+  const phRiskWord = phLevel === 3 ? '極高' : phLevel === 2 ? '較高' : '偏高';
+  const phActionWord = phLevel === 3 ? '全數停利' : phLevel === 2 ? '半數停利' : '分批停利';
+  const prevHighSell = ph ? `前高壓力區段約為 ${fmtP(ph.price)} (共約${phLots}${phUnit})，建議可考慮分批停利` : null;
+  const dcwLabel = downCurveWall ? `<壓力${semaNum(downCurveWall.label)}>` : null;
+  const downCurveSell = downCurveWall ? `${dcwLabel}下彎轉壓（${fmtP(downCurveWall.value)}）· 易被巴頭，建議分批停利${prevHighSell && phLevel < 1 ? `；另${prevHighSell.replace('，建議可考慮分批停利', '需留意')}` : ''}` : null;
+  const prevHighSellFull = ph && phLevel >= 1 ? `前高壓力區段約為 ${fmtP(ph.price)} (共約${phLots}${phUnit})，此價位風險${phRiskWord}，少賺總比賠錢好，建議${phActionWord}，不要貪！` : null;
+  const prevHighLight = ph && phLevel === 0 ? `上方${fmtP(ph.price)}有約${phLots}${phUnit}套牢，提醒留意(不算大魔王)` : null;
+  const sellTargetMsg = sellTarget ? `預估停利價為 ${fmtP(sellTomorrow)}，距停利價還有 ${sellDistEst.toFixed(sellDistEst < 50 ? 1 : 0)} 元 (約${dREst.toFixed(1) === '-0.0' ? '0.0' : dREst.toFixed(1)}%)` : null;
+  const newHighMsg = brkAdvice && brkAdvice.level !== 'top' ? brkAdvice.tier === 'full' ? `⚠ ${brkAdvice.reason}${brkAdvice.liveTag}` : `股價已創近期新高 · 多少要賣一些，建議分批停利${brkAdvice.liveTag}` : null;
+  const lesserSells = [sellTargetMsg, prevHighLight, downCurveSell, newHighMsg].filter(Boolean).join('；') || null;
+  const topMsg = clearOut ? `⚠ ${clearOutMsg}` : bdAdvice ? `${bdAdvice.strong ? '⚠ ' : ''}${bdAdvice.msg}` : brkAdvice && brkAdvice.level === 'top' ? `⚠ 爆天量見頂訊號 · 建議全數停利${brkAdvice.liveTag}` : prevHighSellFull ? prevHighSellFull : headTurnSell ? headTurnSell : reboundUnderPressure ? reboundUnderPressure : earlyWeakness ? earlyWeakness : earlyPullback ? earlyPullback : sellTarget ? sellTargetMsg : downCurveSell ? downCurveSell : newHighMsg ? newHighMsg : seaWideOpen ? '上方已無壓力，但仍需注意乖離風險！' : data.aboveDays === 1 ? '今日突破<壓力3> · <壓力3>轉<支撐3>，連續3日後才能確認支撐有效' : data.aboveDays <= 3 ? `突破<壓力3>後第${data.aboveDays}天 · 觀察<支撐3>是否有效` : data.down3High ? `連續下跌，上方無有效壓力(僅向上均線) · 留意 <支撐3>反彈力道` : `上方無有效壓力(僅向上均線、不構成壓回) · 多頭續抱但留意漲多乖離風險`;
+  const topSubMsgBase = clearOut ? clearOutSub : bdAdvice ? bdAdvice.reason : brkAdvice && brkAdvice.level === 'top' ? brkAdvice.reason : prevHighSellFull ? lesserSells : [prevHighLight, brkAdvice ? brkAdvice.reason : null, justRecovered ? '壓力一旦突破會轉為支撐；需觀察3天確認支撐3是否守得住，站穩才算海闊天空（防假突破真拉回）' : null].filter(Boolean).join('；') || null;
+  const _fibMsgSell = data && data.fibMsg;
+  const topSubMsg = [topSubMsgBase, _fibMsgSell].filter(Boolean).join('；') || null;
+  const buyUpLabel = buyTargetUp ? `<支撐${semaNum(buyTargetUp.label)}>` : null;
+  const fmtDist = tomorrowVal_ => {
+    if (tomorrowVal_ == null) return '';
+    const d = price - tomorrowVal_;
+    const dAbs = Math.abs(d);
+    const pct = Math.abs(d / price) * 100;
+    const dStr = dAbs.toFixed(dAbs < 50 ? 1 : 0);
+    const pctStr = pct.toFixed(1) === '-0.0' ? '0.0' : pct.toFixed(1);
+    return `預估價差為 ${dStr} 元 (約${pctStr}%)`;
+  };
+  let botMsg;
+  if (buyTargetUp && backupTomorrow != null) {
+    botMsg = `預估參考價為 ${fmtP(buyTomorrow)}，${fmtDist(buyTomorrow)}，可小量跟進；若量縮回測，可酌量加碼。後備參考價為 ${fmtP(backupTomorrow)}，${fmtDist(backupTomorrow)}`;
+  } else if (buyTargetUp) {
+    botMsg = `預估參考價為 ${fmtP(buyTomorrow)}，${fmtDist(buyTomorrow)}，可小量跟進；若量縮回測，可酌量加碼`;
+  } else if (noSupport) {
+    botMsg = '下方無支撐 · 留意風險';
+  } else if (support.length > 0) {
+    botMsg = '下方支撐均下彎 · 暫無可靠參考價';
+  } else {
+    botMsg = '下方支撐暫不在畫面範圍 · 接近時自動顯示';
+  }
+  const _baseSubMsg = nearSupport && buyTargetUp ? `可小量試單，若隨後持續補量代表買盤進場、可續抱；無量則別追、爆量跌破則出。` : null;
+  const _nearHighMsg = data && data.nearHighMsg;
+  const botSubLines = _nearHighMsg ? [_nearHighMsg] : [_baseSubMsg].filter(Boolean);
+  const botSubMsg = botSubLines.length ? botSubLines.join(' · ') : null;
+  useEffect(() => {
+    if (onMsg) onMsg({
+      topMsg,
+      topSubMsg,
+      botMsg,
+      botSubMsg,
+      seaWideOpen,
+      noResist,
+      noSupport
+    });
+  }, [topMsg, topSubMsg, botMsg, botSubMsg, seaWideOpen, noResist, noSupport]);
+  const numOf = s => parseInt(semaNum(s.label), 10) || 0;
+  const eps = price * 0.001;
+  const byValThenNum = (a, b) => Math.abs(b.value - a.value) > eps ? b.value - a.value : numOf(a) - numOf(b);
+  const resistList = semas.filter(s => s.value >= price).sort(byValThenNum);
+  const supportList = semas.filter(s => s.value < price).sort(byValThenNum);
+  const resistNamed = resistList.map(s => ({
+    ...s,
+    zhLabel: `${isRising(s) ? '▲' : '▼'}壓力${semaNum(s.label)}`,
+    isFirst: sellTarget && s.label === sellTarget.label
+  }));
+  const supportNamed = supportList.map(s => ({
+    ...s,
+    zhLabel: `${isRising(s) ? '▲' : '▼'}支撐${semaNum(s.label)}`,
+    isFirst: buyTarget && s.label === buyTarget.label,
+    isDynamic: buyTargetUp && s.label === buyTargetUp.label
+  }));
+  const maxSide = Math.max(resistNamed.length, supportNamed.length, 1);
+  const rowH = 20;
+  const VLINE_GAP = 5;
+  const labelLeftPct = ((maxSide * VLINE_GAP + 12) / LEAD_W * 100).toFixed(1) + '%';
+  const labelFont = rowH < 9 ? 9 : rowH < 11 ? 10 : 11;
+  const MIN_GAP = 18;
+  const LBL_LO = 12,
+    LBL_HI = H - 12;
+  const yPrice = toY(price);
+  const riArr = resistNamed.map(s => ({
+    label: s.label,
+    yCurve: toYClamped(s.value),
+    dist: Math.abs(s.value - price)
+  })).sort((a, b) => b.yCurve - a.yCurve);
+  {
+    let last = null;
+    riArr.forEach(it => {
+      it.yLabel = last === null ? it.yCurve : Math.min(it.yCurve, last - MIN_GAP);
+      last = it.yLabel;
+    });
+  }
+  const siArr = supportNamed.map(s => ({
+    label: s.label,
+    yCurve: toYClamped(s.value),
+    dist: Math.abs(s.value - price)
+  })).sort((a, b) => a.yCurve - b.yCurve);
+  {
+    let last = null;
+    siArr.forEach(it => {
+      it.yLabel = last === null ? it.yCurve : Math.max(it.yCurve, last + MIN_GAP);
+      last = it.yLabel;
+    });
+  }
+  if (riArr.length && siArr.length) {
+    const r0 = riArr[0],
+      s0 = siArr[0];
+    const gap = s0.yLabel - r0.yLabel;
+    if (gap < MIN_GAP) {
+      const need = MIN_GAP - gap;
+      if (r0.dist < s0.dist) siArr.forEach(it => {
+        it.yLabel += need;
+      });else riArr.forEach(it => {
+        it.yLabel -= need;
+      });
+    }
+  }
+  if (riArr.length && riArr[riArr.length - 1].yLabel < LBL_LO) {
+    let prev = LBL_LO - MIN_GAP;
+    for (let i = riArr.length - 1; i >= 0; i--) {
+      riArr[i].yLabel = Math.max(riArr[i].yLabel, prev + MIN_GAP);
+      prev = riArr[i].yLabel;
+    }
+  }
+  if (siArr.length && siArr[siArr.length - 1].yLabel > LBL_HI) {
+    let prev = LBL_HI + MIN_GAP;
+    for (let i = siArr.length - 1; i >= 0; i--) {
+      siArr[i].yLabel = Math.min(siArr[i].yLabel, prev - MIN_GAP);
+      prev = siArr[i].yLabel;
+    }
+  }
+  const assignLanes = arr => {
+    const stepW = labelFont + 2;
+    arr.forEach(it => {
+      it.up = it.yLabel < it.yCurve - 0.5;
+      it.flat = Math.abs(it.yLabel - it.yCurve) <= 0.5;
+    });
+    if (arr.length) arr[0].vx = 5;
+    const capVx = (it, lane) => {
+      const maxVx = 10 + Math.max(0, Math.floor((stepW * it.stepIdx - 2) / 5)) * 5;
+      return Math.min(10 + lane * 5, maxVx);
+    };
+    const flats = arr.filter((x, i) => i !== 0 && x.flat);
+    const ups = arr.filter((x, i) => i !== 0 && x.up && !x.flat).concat(flats).sort((a, b) => a.yLabel - b.yLabel);
+    {
+      let lane = 0;
+      for (const it of ups) {
+        if (it.flat) {
+          it.vx = 10;
+          lane = 0;
+        } else {
+          it.vx = capVx(it, lane);
+          lane++;
+        }
+      }
+    }
+    const downs = arr.filter((x, i) => i !== 0 && !x.up && !x.flat).concat(flats).sort((a, b) => b.yLabel - a.yLabel);
+    {
+      let lane = 0;
+      for (const it of downs) {
+        if (it.flat) {
+          it.vx = 10;
+          lane = 0;
+        } else {
+          it.vx = capVx(it, lane);
+          lane++;
+        }
+      }
+    }
+    if (arr.length) arr[0].vx = 5;
+  };
+  riArr.forEach((it, i) => {
+    it.stepIdx = i;
+  });
+  siArr.forEach((it, i) => {
+    it.stepIdx = i;
+  });
+  assignLanes(riArr);
+  assignLanes(siArr);
+  const resistLeads = {};
+  riArr.forEach(it => {
+    resistLeads[it.label] = {
+      yLabel: it.yLabel,
+      yCurve: it.yCurve,
+      vx: it.vx,
+      stepIdx: it.stepIdx
+    };
+  });
+  const supportLeads = {};
+  siArr.forEach(it => {
+    supportLeads[it.label] = {
+      yLabel: it.yLabel,
+      yCurve: it.yCurve,
+      vx: it.vx,
+      stepIdx: it.stepIdx
+    };
+  });
+  return <div style={{
+    position: 'relative',
+    width: '100%',
+    maxWidth: 480,
+    margin: 0,
+    boxSizing: 'border-box',
+    overflowX: 'hidden'
+  }}>
+      <style>{`
+        @keyframes sunnyBlink { 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+        @keyframes sunnyFloatY { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-3px);} }
+      `}</style>
+
+      {}
+      <div style={{
+      marginBottom: 8,
+      padding: '10px 12px',
+      borderRadius: 9,
+      minHeight: 54,
+      boxSizing: 'border-box',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      background: 'rgba(40, 170, 100, 0.18)',
+      border: '1px solid rgba(80, 200, 130, 0.55)'
+    }}>
+        <div style={{
+        fontSize: 12.5,
+        fontWeight: 800,
+        color: topMsg === prevHighSellFull ? phLevel === 3 ? '#ff6b6b' : phLevel === 2 ? '#f5c451' : '#8fd9a8' : '#b8e8c8',
+        lineHeight: 1.5
+      }}>{topMsg}</div>
+        {topSubMsg && <div style={{
+        fontSize: 10.5,
+        color: 'rgba(255,255,255,0.6)',
+        lineHeight: 1.5,
+        marginTop: 2
+      }}>{topSubMsg}</div>}
+      </div>
+
+      {}
+      {}
+      <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 4
+    }}>
+        <span style={{
+        fontSize: 11,
+        color: '#7fa8d0',
+        whiteSpace: 'nowrap',
+        flexShrink: 0
+      }}>最後交易日 {data.tradeDate}</span>
+        <div style={{
+        flex: 1,
+        minWidth: 0,
+        padding: '3px 4px',
+        borderRadius: 7,
+        background: '#b3261e',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxSizing: 'border-box'
+      }}>
+          <span style={{
+          fontSize: 11,
+          fontWeight: 800,
+          color: '#ffffff',
+          letterSpacing: -0.3,
+          lineHeight: 1.1,
+          whiteSpace: 'nowrap'
+        }}>飭令：嚴禁同學使用融資、開槓桿、賭身家</span>
+        </div>
+      </div>
+      {data.waveTargets && data.waveTargets.length > 0 && <div style={{
+      display: 'flex',
+      alignItems: 'stretch',
+      gap: 0,
+      marginBottom: 8,
+      fontSize: 11,
+      lineHeight: 1,
+      border: '1px solid rgba(127,168,208,0.25)',
+      borderRadius: 6,
+      overflow: 'hidden'
+    }}>
+          <span style={{
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        padding: '3px 6px',
+        background: '#16335c',
+        color: '#dce8f5',
+        fontWeight: 700,
+        whiteSpace: 'nowrap'
+      }}>波浪推估：</span>
+          {[0, 1, 2].map(i => {
+        const t = data.waveTargets[i];
+        if (!t) return null;
+        const bg = i === 0 ? '#1e3a24' : i === 1 ? '#3a361e' : '#3a1e1e';
+        const fg = i === 0 ? '#8fe0a0' : i === 1 ? '#f0dd70' : '#ff7a7a';
+        return <div key={i} style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 4,
+          padding: '3px 4px',
+          background: bg,
+          borderLeft: '1px solid rgba(0,0,0,0.3)',
+          boxSizing: 'border-box'
+        }}>
+                <span style={{
+            color: fg,
+            fontWeight: 700,
+            whiteSpace: 'nowrap'
+          }}>({t.ratio})</span>
+                <span style={{
+            color: fg,
+            fontWeight: 800,
+            whiteSpace: 'nowrap'
+          }}>{t.lvl}</span>
+              </div>;
+      })}
+        </div>}
+
+
+      {}
+      {}
+      <div style={{
+      overflowX: 'auto',
+      overflowY: 'visible',
+      width: '100%'
+    }}>
+       <div style={{
+        width: 'max-content',
+        minWidth: '100%'
+      }}>
+      <div style={{
+          display: 'flex',
+          gap: 0,
+          height: H,
+          overflowX: 'visible',
+          overflowY: 'visible'
+        }}>
+        {}
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{
+            flexShrink: 0
+          }}>
+          <defs>
+            {}
+            <linearGradient id="gaugeGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#8e2018" />
+              <stop offset="20%" stopColor="#a03030" />
+              <stop offset="38%" stopColor="#c86060" />
+              <stop offset="46%" stopColor="#c8ccd4" />
+              <stop offset="54%" stopColor="#c8ccd4" />
+              <stop offset="62%" stopColor="#5cb072" />
+              <stop offset="80%" stopColor="#2c9050" />
+              <stop offset="100%" stopColor="#15682c" />
+            </linearGradient>
+            {}
+            <linearGradient id="cylShape" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#000000" stopOpacity="0.35" />
+              <stop offset="18%" stopColor="#ffffff" stopOpacity="0.45" />
+              <stop offset="32%" stopColor="#ffffff" stopOpacity="0.08" />
+              <stop offset="65%" stopColor="#ffffff" stopOpacity="0" />
+              <stop offset="88%" stopColor="#000000" stopOpacity="0.18" />
+              <stop offset="100%" stopColor="#000000" stopOpacity="0.5" />
+            </linearGradient>
+            {}
+            <linearGradient id="floatShine" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.5" />
+              <stop offset="50%" stopColor="#ffffff" stopOpacity="0" />
+              <stop offset="100%" stopColor="#000000" stopOpacity="0.4" />
+            </linearGradient>
+            {}
+            <clipPath id="gaugeClip">
+              <rect x="0" y="0" width={W} height={H} rx="16" />
+            </clipPath>
+            <clipPath id="curveClip">
+              <rect x={xL} y="0" width={xR - xL} height={H} />
+            </clipPath>
+          </defs>
+          <rect x="0" y="0" width={W} height={H} rx="16" fill="url(#gaugeGrad)" stroke="rgba(0,0,0,0.18)" />
+
+          {}
+          {}
+          {}
+          <g clipPath="url(#curveClip)">
+          {semas.map(s => {
+                const isResist = s.value >= price;
+                const isNearest = sellTarget && s.label === sellTarget.label || buyTarget && s.label === buyTarget.label;
+                const isKey = KEY_SEMA_SET.has(s.label) || isNearest;
+                const col = semaColor(s.label, isResist);
+                const cleanRecent = (s.recent || []).filter(v => v !== null && v !== undefined && !isNaN(v));
+                const smooth = arr => arr.map((v, i) => {
+                  if (i === 0 || i === arr.length - 1) return v;
+                  return v * 0.5 + arr[i - 1] * 0.25 + arr[i + 1] * 0.25;
+                });
+                const rawRecent = cleanRecent.length >= 2 ? cleanRecent : [s.value, s.value];
+                const pts = smooth(rawRecent);
+                const n = pts.length;
+                const VIS_DAYS = 17;
+                const visStart = Math.max(0, n - VIS_DAYS);
+                const denom = n - 1 - visStart || 1;
+                const coords = pts.map((v, i) => [xL + (i - visStart) / denom * (xR - xL), toY(v)]);
+                let d = `M ${coords[0][0].toFixed(2)} ${coords[0][1].toFixed(2)}`;
+                for (let i = 0; i < coords.length - 1; i++) {
+                  const p0 = coords[i === 0 ? 0 : i - 1],
+                    p1 = coords[i],
+                    p2 = coords[i + 1],
+                    p3 = coords[i + 2] || p2;
+                  const c1x = p1[0] + (p2[0] - p0[0]) / 6,
+                    c1y = p1[1] + (p2[1] - p0[1]) / 6;
+                  const c2x = p2[0] - (p3[0] - p1[0]) / 6,
+                    c2y = p2[1] - (p3[1] - p1[1]) / 6;
+                  d += ` C ${c1x.toFixed(2)} ${c1y.toFixed(2)}, ${c2x.toFixed(2)} ${c2y.toFixed(2)}, ${p2[0].toFixed(2)} ${p2[1].toFixed(2)}`;
+                }
+                return <path key={s.label} d={d} fill="none" stroke={col} strokeWidth={isKey ? 3.5 : 2} strokeLinecap="round" strokeLinejoin="round" />;
+              })}
+          </g>
+
+          {}
+          {semas.map(s => {
+              const isResist = s.value >= price;
+              const col = semaColor(s.label, isResist);
+              const y = toYClamped(s.value);
+              return <g key={`dot-${s.label}`}>
+                <circle cx={xR} cy={y} r="2.5" fill={col} />
+                <line x1={xR} y1={y} x2={W - 1} y2={y} stroke={col} strokeWidth="1.2" opacity="0.8" />
+              </g>;
+            })}
+
+          {}
+          <g style={{
+              animation: 'sunnyFloatY 3.2s ease-in-out infinite'
+            }}>
+            {}
+            <g style={{
+                animation: blinkDur ? `sunnyBlink ${blinkDur}s ease-in-out infinite` : 'none'
+              }}>
+              <rect x={4} y={ballY - bandH / 2} width={W - 8} height={bandH} rx={bandH / 2} fill={ballColor} stroke="rgba(0,0,0,0.55)" strokeWidth="0.6" style={{
+                  filter: `drop-shadow(0 0 ${blinkDur ? 6 : 3}px ${glowColor})`
+                }} />
+              {}
+              <rect x={4} y={ballY - bandH / 2} width={W - 8} height={bandH} rx={bandH / 2} fill="url(#floatShine)" pointerEvents="none" />
+            </g>
+            {}
+            <text x={W / 2} y={ballY - bandH / 2 - 5} fontWeight="900" fill="#0a0a0a" textAnchor="middle" style={{
+                paintOrder: 'stroke',
+                stroke: 'rgba(255,255,255,0.9)',
+                strokeWidth: 3
+              }}>
+              <tspan fontSize="18">{(Math.round(price * 100) % 100 === 0 ? Math.round(price) : price).toLocaleString('en-US', {
+                    minimumFractionDigits: Math.round(price * 100) % 100 === 0 ? 0 : price < 50 ? 2 : 1,
+                    maximumFractionDigits: price < 50 ? 2 : 1
+                  })}</tspan>
+            </text>
+          </g>
+          {}
+          <rect x="0" y="0" width={W} height={H} rx="16" fill="url(#cylShape)" pointerEvents="none" />
+          {}
+          <g clipPath="url(#gaugeClip)">
+            <ellipse cx="16" cy="180" rx="2" ry="20" fill="#ffffff" opacity="0.25" pointerEvents="none" />
+          </g>
+        </svg>
+        <div style={{
+            flex: 1,
+            position: 'relative',
+            minWidth: 300
+          }}>
+          {}
+          <svg viewBox={`0 0 ${LEAD_W} ${H}`} preserveAspectRatio="none" style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: H,
+              pointerEvents: 'none',
+              overflow: 'visible'
+            }}>
+            {[...resistNamed, ...supportNamed].map(s => {
+                const isResist = s.value >= price;
+                const col = semaColor(s.label, isResist);
+                const lead = isResist ? resistLeads[s.label] : supportLeads[s.label];
+                const yCurve = lead.yCurve;
+                const yLabel = lead.yLabel;
+                const stepW = labelFont + 2;
+                const xLabel = 10 + lead.stepIdx * stepW;
+                const xEnd = xLabel - 2;
+                const vx = lead.vx;
+                const d = `M -8 ${yCurve.toFixed(1)} H ${vx} V ${yLabel.toFixed(1)} H ${xEnd.toFixed(1)}`;
+                return <path key={`lead-${s.label}`} d={d} fill="none" stroke={col} strokeWidth="1" opacity="0.8" vectorEffect="non-scaling-stroke" />;
+              })}
+          </svg>
+          {}
+          {resistNamed.map(s => {
+              const c = semaColor(s.label, true);
+              const lead = resistLeads[s.label];
+              const stepW = labelFont + 2;
+              const leftPct = ((10 + lead.stepIdx * stepW) / LEAD_W * 100).toFixed(1) + '%';
+              const topPx = lead.yLabel;
+              return <div key={s.label} style={{
+                position: 'absolute',
+                top: topPx,
+                transform: 'translateY(-50%)',
+                left: leftPct,
+                right: 0,
+                fontSize: labelFont,
+                fontWeight: KEY_SEMA_SET.has(s.label) || s.isFirst ? 900 : 500,
+                color: s.isFirst ? '#ffffff' : c,
+                whiteSpace: 'nowrap'
+              }}>
+              {}
+              <span style={s.isFirst ? {
+                  background: 'rgba(40,150,70,0.55)',
+                  padding: '1px 4px',
+                  borderRadius: 3
+                } : undefined}>
+                {`<${s.zhLabel}> ${s.value.toFixed(s.value < 50 ? 2 : 1)} `}
+                <span style={{
+                    color: s.isFirst ? '#ffffff' : c,
+                    opacity: s.isFirst ? 0.9 : 0.8
+                  }}>{`(${pctText(s.value)})`}</span>
+              </span>
+            </div>;
+            })}
+
+          {}
+
+          {}
+          {supportNamed.map(s => {
+              const c = semaColor(s.label, false);
+              const lead = supportLeads[s.label];
+              const stepW = labelFont + 2;
+              const leftPct = ((10 + lead.stepIdx * stepW) / LEAD_W * 100).toFixed(1) + '%';
+              const topPx = lead.yLabel;
+              return <div key={s.label} style={{
+                position: 'absolute',
+                top: topPx,
+                transform: 'translateY(-50%)',
+                left: leftPct,
+                right: 0,
+                fontSize: labelFont,
+                fontWeight: KEY_SEMA_SET.has(s.label) || s.isFirst ? 900 : 500,
+                color: s.isDynamic ? '#ffffff' : c,
+                whiteSpace: 'nowrap'
+              }}>
+              {}
+              <span style={s.isDynamic ? {
+                  background: 'rgba(200,40,40,0.55)',
+                  padding: '1px 4px',
+                  borderRadius: 3
+                } : undefined}>
+                {`<${s.zhLabel}> ${s.value.toFixed(s.value < 50 ? 2 : 1)} `}
+                <span style={{
+                    color: s.isDynamic ? '#ffffff' : c,
+                    opacity: s.isDynamic ? 0.9 : 0.8
+                  }}>{`(${pctText(s.value)})`}</span>
+              </span>
+            </div>;
+            })}
+        </div>
+      </div>
+
+      {}
+      {data.volSeries && data.volSeries.length > 0 && (() => {
+          const vols = data.volSeries;
+          const maxVol = Math.max(...vols.map(v => Math.max(v.lots, v.ma17, v.ma45)), 1);
+          const vW = W,
+            vH = 81,
+            gap = 1;
+          const barW = (vW - gap * (vols.length - 1)) / vols.length;
+          const cx = i => i * (barW + gap) + barW / 2;
+          const cy = val => vH - val / maxVol * (vH - 4);
+          const linePath = key => vols.map((v, i) => `${i === 0 ? 'M' : 'L'} ${cx(i).toFixed(1)} ${cy(v[key]).toFixed(1)}`).join(' ');
+          return <div style={{
+            display: 'flex',
+            gap: 0,
+            marginTop: 4
+          }}>
+            <svg width={vW} height={vH} viewBox={`0 0 ${vW} ${vH}`} style={{
+              flexShrink: 0
+            }}>
+              {}
+              <defs>
+                <linearGradient id="volShine" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#000000" stopOpacity="0.3" />
+                  <stop offset="20%" stopColor="#ffffff" stopOpacity="0.4" />
+                  <stop offset="55%" stopColor="#ffffff" stopOpacity="0" />
+                  <stop offset="100%" stopColor="#000000" stopOpacity="0.35" />
+                </linearGradient>
+              </defs>
+              {vols.map((v, i) => {
+                const h = v.lots / maxVol * (vH - 4);
+                return <React.Fragment key={i}>
+                    <rect x={i * (barW + gap)} y={vH - h} width={barW} height={h} fill={v.up ? '#c0392b' : '#27ae60'} opacity="0.85" />
+                    <rect x={i * (barW + gap)} y={vH - h} width={barW} height={h} fill="url(#volShine)" pointerEvents="none" />
+                  </React.Fragment>;
+              })}
+              <path d={linePath('ma17')} fill="none" stroke="#e0c020" strokeWidth="1.3" opacity="0.95" />
+              <path d={linePath('ma45')} fill="none" stroke="#2aa5b0" strokeWidth="1.3" opacity="0.95" />
+            </svg>
+            <div style={{
+              flex: 1,
+              paddingLeft: 8,
+              display: 'flex',
+              alignItems: 'flex-end',
+              gap: 14,
+              flexShrink: 0
+            }}>
+              {}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 1,
+                whiteSpace: 'nowrap'
+              }}>
+                <div style={{
+                  fontSize: 10,
+                  color: '#8a96ad'
+                }}>{data.isTw ? `今日成交量: ${data.volLots.toLocaleString()} 張` : `今日成交量: ${(data.volLots * 1000).toLocaleString()} 股`}</div>
+                {data.volRatio != null && <div style={{
+                  fontSize: 10,
+                  color: data.volRatio >= 1 ? '#ff8a8a' : '#8fd9a8'
+                }}>{`今日量比: ${data.volRatio.toFixed(2)}`}</div>}
+                {data.intraday && data.intraday.estTodayVolLots != null && <div style={{
+                  fontSize: 10,
+                  color: '#3fb8c4'
+                }}>{data.isTw ? `今日預估量: ${data.intraday.estTodayVolLots.toLocaleString()} 張` : `今日預估量: ${(data.intraday.estTodayVolLots * 1000).toLocaleString()} 股`}</div>}
+              </div>
+              {(data.lowVolToday || data.lowVolYesterday) && <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 1
+              }}>
+                  <div style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: '#7a1212',
+                  background: '#f6c9c9',
+                  padding: '1px 8px',
+                  borderRadius: 3,
+                  lineHeight: 1.4,
+                  whiteSpace: 'nowrap',
+                  minHeight: 15,
+                  boxSizing: 'border-box'
+                }}>
+                    {data.lowVolToday ? `今日為${data.lowVolToday}日內新低量` : ''}
+                  </div>
+                  <div style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: '#7a1212',
+                  background: '#ef9a9a',
+                  padding: '1px 8px',
+                  borderRadius: 3,
+                  lineHeight: 1.4,
+                  whiteSpace: 'nowrap',
+                  minHeight: 15,
+                  boxSizing: 'border-box'
+                }}>
+                    {data.lowVolYesterday ? `昨日為${data.lowVolYesterday}日內新低量` : ''}
+                  </div>
+                  <div style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: '#ffffff',
+                  background: '#d32f2f',
+                  padding: '1px 8px',
+                  borderRadius: 3,
+                  lineHeight: 1.4,
+                  whiteSpace: 'nowrap',
+                  minHeight: 15,
+                  boxSizing: 'border-box'
+                }}>
+                    留意新低量之參考價
+                  </div>
+                </div>}
+            </div>
+          </div>;
+        })()}
+       </div>
+      </div>
+
+      {}
+      <div style={{
+      marginTop: 8,
+      padding: '10px 12px',
+      borderRadius: 9,
+      minHeight: 54,
+      boxSizing: 'border-box',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      background: 'rgba(200, 60, 60, 0.18)',
+      border: '1px solid rgba(230, 100, 100, 0.55)'
+    }}>
+        <div style={{
+        fontSize: 12.5,
+        fontWeight: 800,
+        color: '#f0b8b8',
+        lineHeight: 1.5
+      }}>{botMsg}</div>
+        {botSubMsg && <div style={{
+        fontSize: 10.5,
+        color: 'rgba(255,255,255,0.6)',
+        lineHeight: 1.5,
+        marginTop: 2
+      }}>{botSubMsg}</div>}
+      </div>
+
+    </div>;
+}
+function App() {
+  const GUARD_CODE = typeof window !== 'undefined' && window.SUNNY_GUARD_CODE ? String(window.SUNNY_GUARD_CODE) : '580523';
+  const guardKey = 'sunny_guard_ok_' + GUARD_CODE;
+  const [guardPassed, setGuardPassed] = useState(() => {
+    try {
+      return localStorage.getItem(guardKey) === '1';
+    } catch (e) {
+      return false;
+    }
+  });
+  const [guardInput, setGuardInput] = useState('');
+  const [guardTries, setGuardTries] = useState(0);
+  const [guardLocked, setGuardLocked] = useState(false);
+  const tryGuard = () => {
+    if (guardInput.trim() === GUARD_CODE) {
+      try {
+        localStorage.setItem(guardKey, '1');
+      } catch (e) {}
+      setGuardPassed(true);
+    } else {
+      const n = guardTries + 1;
+      setGuardTries(n);
+      setGuardInput('');
+      if (n >= 3) setGuardLocked(true);
+    }
+  };
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sysMsg, setSysMsg] = useState('輸入股票代碼開始');
+  const [waveL1, setWaveL1] = useState('');
+  const [waveH1, setWaveH1] = useState('');
+  const [waveL2, setWaveL2] = useState('');
+  const waveL1Ref = useRef('');
+  const waveH1Ref = useRef('');
+  const waveL2Ref = useRef('');
+  waveL1Ref.current = waveL1;
+  waveH1Ref.current = waveH1;
+  waveL2Ref.current = waveL2;
+  const WAVE_MEM_KEY = 'sunny_wave_mem_v1';
+  const readWaveMem = code => {
+    try {
+      const m = JSON.parse(localStorage.getItem(WAVE_MEM_KEY) || '{}');
+      return m[code] || null;
+    } catch (e) {
+      return null;
+    }
+  };
+  const saveWaveMem = (code, l1, h1, l2) => {
+    try {
+      const m = JSON.parse(localStorage.getItem(WAVE_MEM_KEY) || '{}');
+      m[code] = {
+        l1,
+        h1,
+        l2
+      };
+      localStorage.setItem(WAVE_MEM_KEY, JSON.stringify(m));
+    } catch (e) {}
+  };
+  const [data, setData] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [showDbg, setShowDbg] = useState(false);
+  const [nowClock, setNowClock] = useState('');
+  const [topMsgData, setTopMsgData] = useState(null);
+  useEffect(() => {
+    const tick = () => {
+      const d = new Date();
+      const p2 = n => String(n).padStart(2, '0');
+      setNowClock(`${d.getFullYear()}/${p2(d.getMonth() + 1)}/${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+  const analyzingRef = useRef(false);
+  const priceRowRef = useRef(null);
+  const [watchlist, setWatchlist] = useState([]);
+  const stockNamesRef = useRef({});
+  const analyze = useCallback(async rawCode => {
+    const code = (rawCode || '').trim().toUpperCase();
+    if (!code) return;
+    const type = detectInstrumentType(code);
+    if (type === 'ETF') {
+      setErrorMsg('ETF 不在分析範圍');
+      return;
+    }
+    if (type === 'WARRANT') {
+      setErrorMsg('權證 / 特別股不在分析範圍');
+      return;
+    }
+    const wl1 = waveL1Ref.current.trim(),
+      wh1 = waveH1Ref.current.trim(),
+      wl2 = waveL2Ref.current.trim();
+    const anyWave = wl1 !== '' || wh1 !== '' || wl2 !== '';
+    if (anyWave) {
+      const n1 = parseFloat(wl1),
+        nH = parseFloat(wh1),
+        n2 = parseFloat(wl2);
+      if (wl1 === '' || wh1 === '' || wl2 === '' || isNaN(n1) || isNaN(nH) || isNaN(n2)) {
+        setErrorMsg('浪高推估: L1/H1/L2 需都填數字(或全部清空)');
+        return;
+      }
+      if (n1 <= 0 || nH <= 0 || n2 <= 0) {
+        setErrorMsg('浪高推估: L1/H1/L2 不得為 0');
+        return;
+      }
+      if (nH <= n1) {
+        setErrorMsg('浪高推估: H1 須大於 L1');
+        return;
+      }
+      if (n2 <= n1) {
+        setErrorMsg('浪高推估: L2 須大於 L1');
+        return;
+      }
+      if (n2 >= nH) {
+        setErrorMsg('浪高推估: L2 須小於 H1');
+        return;
+      }
+    }
+    setErrorMsg('');
+    setLoading(true);
+    analyzingRef.current = true;
+    setSysMsg(`${code} 連線中...`);
+    const isIndex = type === 'INDEX_TW';
+    const isTw = type === 'STOCK_TW' || isIndex;
+    const indexInfo = isIndex ? TW_INDEX_MAP[code.toUpperCase()] : null;
+    const queryCodes = isIndex ? [indexInfo.sym] : isTw ? [`${code}.TW`, `${code}.TWO`] : [code];
+    let resp = null,
+      usedQc = null;
+    let lastDiag = '';
+    for (const qc of queryCodes) {
+      if (!analyzingRef.current) return;
+      try {
+        const r = await fetchWithExtremePenetration(`https://query2.finance.yahoo.com/v8/finance/chart/${qc}?range=10y&interval=1d&nocache=${Date.now()}`, 2, m => {
+          if (analyzingRef.current) setSysMsg(m);
+        });
+        if (r?.chart?.result) {
+          resp = r;
+          usedQc = qc;
+          break;
+        }
+        if (r?.__error) lastDiag = r.__error;
+      } catch (e) {
+        lastDiag = e.message || String(e);
+      }
+    }
+    if (!analyzingRef.current) return;
+    if (!resp?.chart?.result) {
+      setErrorMsg(`連線失敗診斷: ${lastDiag || '未知'}`);
+      setLoading(false);
+      analyzingRef.current = false;
+      setSysMsg('輸入股票代碼開始');
+      return;
+    }
+    const result = resp.chart.result[0];
+    const quote = result.indicators.quote[0];
+    const tsArr = result.timestamp || [];
+    const closeArr = quote.close || [];
+    const adjArr = result.indicators.adjclose && result.indicators.adjclose[0] && result.indicators.adjclose[0].adjclose ? result.indicators.adjclose[0].adjclose : closeArr;
+    const volArr = quote.volume || [];
+    const highArr = quote.high || [];
+    const lowArr = quote.low || [];
+    const paired = [];
+    for (let i = 0; i < closeArr.length; i++) {
+      const adj = adjArr[i];
+      const raw = closeArr[i];
+      if (adj !== null && adj !== undefined && !isNaN(adj)) {
+        const ratio = raw && adj ? adj / raw : 1;
+        const rawHi_pre = highArr[i] != null && !isNaN(highArr[i]) ? highArr[i] : null;
+        const rawLo_valid = lowArr[i] != null && !isNaN(lowArr[i]) && lowArr[i] > 0 ? lowArr[i] : null;
+        const hi = rawHi_pre != null ? rawHi_pre * ratio : adj;
+        const lo = rawLo_valid != null ? rawLo_valid * ratio : rawHi_pre != null && raw ? (raw + rawHi_pre) / 2 * ratio : adj;
+        const rawHi = rawHi_pre != null ? rawHi_pre : raw !== null && raw !== undefined && !isNaN(raw) ? raw : adj;
+        const rawLo = rawLo_valid != null ? rawLo_valid : rawHi != null && raw ? (raw + rawHi) / 2 : raw !== null && raw !== undefined && !isNaN(raw) ? raw : adj;
+        paired.push({
+          ts: tsArr[i] || i,
+          adj,
+          raw: raw !== null && raw !== undefined && !isNaN(raw) ? raw : adj,
+          hi,
+          lo,
+          rawHi,
+          rawLo,
+          vol: volArr[i] || 0
+        });
+      }
+    }
+    paired.sort((a, b) => a.ts - b.ts);
+    const validData = paired.map(p => p.raw);
+    const rawCloses = paired.map(p => p.raw);
+    const adjCloses = paired.map(p => p.adj);
+    if (validData.length < 30) {
+      setErrorMsg('資料不足');
+      setLoading(false);
+      analyzingRef.current = false;
+      setSysMsg('輸入股票代碼開始');
+      return;
+    }
+    const price = r2(validData[validData.length - 1]);
+    const closes = validData;
+    const semaSeries = calcSEMASeries(closes, ALL_SMA_MODE);
+    const prevClose = r2(validData[validData.length - 2]);
+    const change = r2(price - prevClose);
+    const changePct = r2(change / prevClose * 100);
+    let limitState = null;
+    if (isTw && prevClose > 0) {
+      const tickOf = p => p < 10 ? 0.01 : p < 50 ? 0.05 : p < 100 ? 0.1 : p < 500 ? 0.5 : p < 1000 ? 1 : 5;
+      const rawUp = prevClose * 1.1,
+        rawDn = prevClose * 0.9;
+      const limitUp = r2(Math.floor((rawUp + 1e-9) / tickOf(rawUp)) * tickOf(rawUp));
+      const limitDn = r2(Math.ceil((rawDn - 1e-9) / tickOf(rawDn)) * tickOf(rawDn));
+      if (Math.abs(price - limitUp) < 0.001) limitState = 'up';else if (Math.abs(price - limitDn) < 0.001) limitState = 'down';
+    }
+    const CURVE_DAYS = 30;
+    const semaSnapshot = [];
+    FIB_EMA_PERIODS.forEach(p => {
+      const arr = semaSeries[p] || [];
+      const v = latestOf(arr);
+      if (v === null || isNaN(v)) return;
+      const validArr = arr.filter(x => x !== null && !isNaN(x));
+      const recent = validArr.slice(-CURVE_DAYS).map(x => r2(x));
+      semaSnapshot.push({
+        label: SEMA_LABELS[p],
+        period: p,
+        value: r2(v),
+        recent,
+        kdc: closes.length - p >= 0 ? r2(closes[closes.length - p]) : null
+      });
+    });
+    const RANGE_DAYS = 17;
+    const recent17 = paired.slice(-RANGE_DAYS);
+    const candleHi = Math.max(price, ...recent17.map(p => p.hi));
+    const candleLo = Math.min(price, ...recent17.map(p => p.lo));
+    const span = candleHi - candleLo;
+    const pad = Math.max(span * 0.5, price * 0.08);
+    const hi17 = candleHi + pad;
+    const lo17 = candleLo - pad;
+    const inRange = semaSnapshot.filter(s => s.value >= lo17 && s.value <= hi17);
+    const above = inRange.filter(s => s.value >= price).sort((a, b) => a.value - b.value);
+    const below = inRange.filter(s => s.value < price).sort((a, b) => b.value - a.value);
+    const chosen = [...above, ...below];
+    const codeKey = code.replace(/\.TW(O)?$/i, '');
+    let finalName = isIndex ? indexInfo.name : lookupCNName(code) || stockNamesRef.current[codeKey];
+    if (!finalName && isTw && !isIndex) {
+      finalName = await fetchCNName(codeKey, fetchWithExtremePenetration);
+    }
+    if (!finalName) finalName = result.meta.shortName && /[\u4e00-\u9fff]/.test(result.meta.shortName) ? result.meta.shortName : codeKey;
+    stockNamesRef.current[codeKey] = finalName;
+    const dbg = {
+      n: closes.length,
+      first3: closes.slice(0, 3).map(v => r2(v)),
+      last3: closes.slice(-3).map(v => r2(v)),
+      tsFirst: paired.length ? new Date(paired[0].ts * 1000).toISOString().slice(0, 10) : '?',
+      tsLast: paired.length ? new Date(paired[paired.length - 1].ts * 1000).toISOString().slice(0, 10) : '?',
+      rawLast: r2(rawCloses[rawCloses.length - 1]),
+      ema6: r2(latestOf(semaSeries[6]) || 0),
+      ema45: r2(latestOf(semaSeries[45]) || 0),
+      ema189: r2(latestOf(semaSeries[189]) || 0),
+      ema494: r2(latestOf(semaSeries[494]) || 0),
+      ema799: r2(latestOf(semaSeries[799]) || 0),
+      snapCount: semaSnapshot.length,
+      chosenList: chosen.map(s => `${s.label}=${s.value}`).join(' '),
+      rangeLoHi: `${lo17.toFixed(1)}~${hi17.toFixed(1)}`,
+      s1last8: (semaSeries[6] || []).filter(x => x != null).slice(-17).map(v => r2(v)).join(','),
+      s2last8: (semaSeries[11] || []).filter(x => x != null).slice(-17).map(v => r2(v)).join(','),
+      closeLast8: closes.slice(-17).map(v => r2(v)).join(','),
+      regularPrice: result.meta.regularMarketPrice,
+      allSemas: FIB_EMA_PERIODS.map((p, i) => `EMA${i + 1}=${r2(latestOf(semaSeries[p]) || 0)}`).join('  '),
+      adjLast3: adjCloses.slice(-4, -1).map(v => r2(v)).join(','),
+      rawLast3: closes.slice(-3).map(v => r2(v)).join(','),
+      rawFirst3: rawCloses.slice(0, 3).map(v => r2(v)).join(','),
+      adjFirst3: adjCloses.slice(0, 3).map(v => r2(v)).join(','),
+      ratioFirst: rawCloses[0] && adjCloses[0] ? r2(adjCloses[0] / rawCloses[0]) : 1
+    };
+    const lastTs = paired.length ? paired[paired.length - 1].ts : null;
+    const tradeDate = lastTs ? new Date(lastTs * 1000) : null;
+    const tradeDateStr = tradeDate ? `${tradeDate.getFullYear()}/${String(tradeDate.getMonth() + 1).padStart(2, '0')}/${String(tradeDate.getDate()).padStart(2, '0')}` : '';
+    const lastVol = paired.length ? paired[paired.length - 1].vol : 0;
+    const prevVol = paired.length > 1 ? paired[paired.length - 2].vol : 0;
+    const volRatio = prevVol > 0 ? lastVol / prevVol : null;
+    const lastVolLots = Math.round(lastVol / 1000);
+    const VOL45_DAYS = 45;
+    const vol45Start = Math.max(0, paired.length - 1 - VOL45_DAYS);
+    const vol45End = paired.length - 1;
+    const vol45Slice = paired.slice(vol45Start, vol45End);
+    const vol45Avg = vol45Slice.length ? vol45Slice.reduce((s, p) => s + (p.vol || 0), 0) / vol45Slice.length : 0;
+    const vol45Ratio = vol45Avg > 0 ? lastVol / vol45Avg : null;
+    const CURVE_DAYS_V = 17;
+    const allVolLots = paired.map(p => Math.round(p.vol / 1000));
+    const maxFibLow = back => {
+      const FIB = [3, 5, 8, 13, 21, 34, 55, 89, 144, 233];
+      const idx = allVolLots.length - 1 - back;
+      if (idx < 2) return null;
+      const day = allVolLots[idx];
+      let best = null;
+      for (const N of FIB) {
+        if (idx - (N - 1) < 0) break;
+        const prev = allVolLots.slice(idx - (N - 1), idx);
+        if (prev.every(v => day < v)) best = N;else break;
+      }
+      return best;
+    };
+    const lowVolToday = maxFibLow(0);
+    const lowVolYesterday = maxFibLow(1);
+    const startIdx = Math.max(0, paired.length - CURVE_DAYS_V);
+    const volMA = (endIdx, period) => {
+      const s = Math.max(0, endIdx - period + 1);
+      const seg = allVolLots.slice(s, endIdx + 1);
+      return seg.length ? seg.reduce((a, b) => a + b, 0) / seg.length : 0;
+    };
+    const volSeries = [];
+    for (let i = startIdx; i < paired.length; i++) {
+      const prevClose = i > 0 ? paired[i - 1].raw : paired[i].raw;
+      volSeries.push({
+        lots: allVolLots[i],
+        up: paired[i].raw >= prevClose,
+        ma17: volMA(i, 17),
+        ma45: volMA(i, 45)
+      });
+    }
+    let intraday = null;
+    try {
+      if (analyzingRef.current) {
+        setSysMsg('讀取盤中量能...');
+        intraday = await fetchIntradayVolRatio(usedQc || queryCodes[0]);
+      }
+    } catch (e) {
+      intraday = null;
+    }
+    let high60 = null;
+    if (paired.length >= 2) {
+      const lookback = paired.slice(Math.max(0, paired.length - 1 - 60), paired.length - 1);
+      if (lookback.length) high60 = Math.max(...lookback.map(p => p.hi));
+    }
+    const todayHi = paired.length ? paired[paired.length - 1].hi : price;
+    const isNewHigh60 = high60 != null && Math.max(todayHi, price) > high60;
+    let divergePct13 = 0;
+    if (paired.length >= 14) {
+      const seg = paired.slice(-14);
+      let divDays = 0,
+        totDays = 0;
+      for (let i = 1; i < seg.length; i++) {
+        const c2 = seg[i].raw,
+          pc = seg[i - 1].raw,
+          v = seg[i].vol || 0;
+        if (c2 === pc) continue;
+        const priceUp = c2 > pc;
+        const volUp = v > (seg[i - 1].vol || 0);
+        const diverge = priceUp && !volUp || !priceUp && volUp;
+        totDays++;
+        if (diverge) divDays++;
+      }
+      divergePct13 = totDays ? Math.round(divDays / totDays * 100) : 0;
+    }
+    let headPriceDown13 = false;
+    if (paired.length >= 14) {
+      const _todayHi = paired[paired.length - 1].rawHi;
+      const _ref = paired[paired.length - 1 - 13];
+      const _refLo = _ref && _ref.rawLo > 0 ? _ref.rawLo : _ref ? _ref.raw : null;
+      if (_todayHi != null && _refLo != null) headPriceDown13 = _todayHi < _refLo;
+    }
+    let down3High = false;
+    if (paired.length >= 4) {
+      const c = paired.map(p => p.raw);
+      const n = c.length;
+      down3High = c[n - 1] < c[n - 2] && c[n - 2] < c[n - 3] && c[n - 3] < c[n - 4];
+    }
+    let fibMsg = null;
+    if (paired.length >= 3) {
+      const FIB = new Set([3, 5, 8, 13, 21, 34, 55, 89]);
+      const lastIdx = paired.length - 1;
+      let newHighIdx = -1;
+      for (let i = lastIdx; i >= Math.max(0, lastIdx - 90); i--) {
+        const back = paired.slice(Math.max(0, i - 60), i);
+        if (!back.length) continue;
+        const priorMaxHi = Math.max(...back.map(p => p.rawHi));
+        if (paired[i].rawHi > priorMaxHi) {
+          newHighIdx = i;
+          break;
+        }
+      }
+      if (newHighIdx >= 0) {
+        const N = lastIdx - newHighIdx + 1;
+        if (FIB.has(N)) {
+          fibMsg = `創新高後第 ${N} 天，今日恐有轉折，需觀察量縮收斂或量增續攻`;
+        } else if (FIB.has(N + 1)) {
+          fibMsg = `創新高後第 ${N} 天，應關注明日轉折`;
+        }
+      }
+    }
+    let nearHighMsg = null;
+    if (paired.length >= 2) {
+      const FIB_NEAR = new Set([3, 5, 8, 13, 21]);
+      const lastIdx = paired.length - 1;
+      const win = paired.slice(Math.max(0, lastIdx - 7), lastIdx + 1);
+      let maxHi = -Infinity,
+        maxOffsetFromEnd = 0;
+      win.forEach((p, i) => {
+        const realIdx = Math.max(0, lastIdx - 7) + i;
+        if (p.rawHi >= maxHi) {
+          maxHi = p.rawHi;
+          maxOffsetFromEnd = lastIdx - realIdx;
+        }
+      });
+      const N = maxOffsetFromEnd + 1;
+      if (N >= 2 && FIB_NEAR.has(N)) {
+        nearHighMsg = `創近期新高後第 ${N} 天，應關注今日轉折 · 若量縮止跌可小量試單，若隨後持續補量代表買盤進場、可續抱；無量則別追、爆量跌破則出。`;
+      } else if (N >= 2 && FIB_NEAR.has(N + 1)) {
+        nearHighMsg = `創近期新高後第 ${N} 天，應關注明日轉折 · 若量縮止跌可小量試單，若隨後持續補量代表買盤進場、可續抱；無量則別追、爆量跌破則出。`;
+      }
+    }
+    let prevHigh = null;
+    const ss8 = semaSnapshot.find(s => s.label === 'SEMA8');
+    let ss8Down = false;
+    if (ss8 && ss8.recent && ss8.recent.length >= 2) {
+      const r = ss8.recent.filter(x => x != null && !isNaN(x));
+      if (r.length >= 2) {
+        const back = r[r.length - 2];
+        ss8Down = r[r.length - 1] <= back;
+      }
+    }
+    const priceBelowSS8 = !!(ss8 && ss8.value != null && price < ss8.value);
+    const isBearStock = ss8Down && priceBelowSS8;
+    if (isBearStock) nearHighMsg = null;
+    let wavePosMsg = null,
+      waveTargets = null;
+    {
+      const _l1 = parseFloat(waveL1Ref.current),
+        _h1 = parseFloat(waveH1Ref.current),
+        _l2 = parseFloat(waveL2Ref.current);
+      if (!isNaN(_l1) && !isNaN(_h1) && !isNaN(_l2) && _h1 > _l1 && _l2 > _l1 && _l2 < _h1 && _l1 > 0) {
+        saveWaveMem(code, waveL1Ref.current.trim(), waveH1Ref.current.trim(), waveL2Ref.current.trim());
+        const wSpan = _h1 - _l1;
+        const fmtTp = v => v < 100 ? v.toFixed(2) : Math.round(v).toLocaleString('en-US');
+        const fmtR = r => {
+          const s = r.toFixed(3);
+          return s.replace(/0+$/, '').replace(/\.$/, '');
+        };
+        const wavePrice = paired.length > 0 && paired[paired.length - 1].rawHi ? paired[paired.length - 1].rawHi : price;
+        const FRAC = [0.0, 0.191, 0.382, 0.5, 0.618, 0.809];
+        const ups = [];
+        for (let n = 0; n < 1000 && ups.length < 3; n++) {
+          for (const f of FRAC) {
+            const ratio = n + f;
+            if (ratio < 0.191) continue;
+            const lvl = _l2 + wSpan * ratio;
+            if (lvl > wavePrice) {
+              ups.push({
+                ratio: fmtR(ratio),
+                lvl: fmtTp(lvl)
+              });
+              if (ups.length >= 3) break;
+            }
+          }
+        }
+        if (ups.length > 0) waveTargets = ups;
+      }
+    }
+    if (!isBearStock && paired.length >= 5) {
+      const vol17Slice = paired.slice(Math.max(0, paired.length - 18), paired.length - 1);
+      const vol17Avg = vol17Slice.length ? vol17Slice.reduce((s, p) => s + (p.vol || 0), 0) / vol17Slice.length : 0;
+      const BIN_PCT = 0.005,
+        WALL_MAX_PCT = 0.15;
+      const binW = price * BIN_PCT;
+      const startI = Math.max(0, paired.length - 1 - 1292);
+      const endI = paired.length - 1;
+      const bins = new Map();
+      for (let i = startI; i < endI; i++) {
+        const dHi = paired[i].rawHi,
+          dLo = paired[i].rawLo,
+          dC = paired[i].raw,
+          dVol = paired[i].vol || 0;
+        if (dHi <= price || dVol <= 0 || !(dHi > dLo)) {
+          if (dHi > price && dVol > 0 && dHi <= dLo) {
+            const key = Math.floor(dHi / binW) * binW;
+            const b = bins.get(key) || {
+              lo: key,
+              vol: 0,
+              hiAtMaxVol: dHi,
+              volMax: -1,
+              days: 0
+            };
+            b.vol += dVol;
+            b.days += 1;
+            if (dVol > b.volMax) {
+              b.volMax = dVol;
+              b.hiAtMaxVol = dHi;
+            }
+            bins.set(key, b);
+          }
+          continue;
+        }
+        const kHi = Math.floor(dHi / binW),
+          kLo = Math.floor(Math.max(dLo, 0) / binW);
+        const cen = Math.min(Math.max(dC, dLo), dHi);
+        const upSpan = Math.max(dHi - cen, binW * 0.5);
+        const dnSpan = Math.max(cen - dLo, binW * 0.5);
+        const cells = [];
+        let wSum = 0;
+        for (let k = kLo; k <= kHi; k++) {
+          const cellLo = k * binW,
+            cellMid = cellLo + binW / 2;
+          const d2 = cellMid - cen;
+          const w = d2 >= 0 ? Math.max(0, 1 - d2 / upSpan) : Math.max(0, 1 - -d2 / dnSpan);
+          cells.push({
+            k,
+            cellLo,
+            w
+          });
+          wSum += w;
+        }
+        if (wSum <= 0) {
+          cells.forEach(c => c.w = 1);
+          wSum = cells.length;
+        }
+        for (const c of cells) {
+          if (c.cellLo + binW <= price) continue;
+          const vCell = dVol * (c.w / wSum);
+          if (vCell <= 0) continue;
+          const key = c.cellLo;
+          const cellMidHi = Math.min(dHi, c.cellLo + binW);
+          const b = bins.get(key) || {
+            lo: key,
+            vol: 0,
+            hiAtMaxVol: cellMidHi,
+            volMax: -1,
+            days: 0
+          };
+          b.vol += vCell;
+          b.days += 1;
+          if (vCell > b.volMax) {
+            b.volMax = vCell;
+            b.hiAtMaxVol = cellMidHi;
+          }
+          bins.set(key, b);
+        }
+      }
+      const arr = [...bins.values()];
+      if (arr.length) {
+        const maxPrice = price * (1 + WALL_MAX_PCT);
+        const vols = arr.filter(b => b.lo > price).map(b => b.vol).sort((x, y) => x - y);
+        const medVol = vols.length ? vols[Math.floor(vols.length / 2)] : 0;
+        const cand = arr.filter(b => b.lo > price && b.lo <= maxPrice && b.vol >= medVol).sort((a, b) => a.lo - b.lo);
+        const WALL_FLOOR_MULT = 0.7;
+        const wallFloor = vol17Avg * WALL_FLOOR_MULT;
+        const WALL_WIDTH_PCT = 0.01,
+          NEAR_PCT = 0.10;
+        const widthLimit = price * WALL_WIDTH_PCT;
+        const buildWallAt = centerIdx => {
+          let lo = centerIdx,
+            hi = centerIdx;
+          const adjTol = binW * 0.05;
+          while (lo > 0) {
+            const prev = cand[lo - 1],
+              cur = cand[lo];
+            if (Math.abs(cur.lo - (prev.lo + binW)) > adjTol) break;
+            const newWidth = cand[hi].lo + binW - prev.lo;
+            if (newWidth > widthLimit + binW * 0.05) break;
+            lo--;
+          }
+          while (hi < cand.length - 1) {
+            const next = cand[hi + 1],
+              cur = cand[hi];
+            if (Math.abs(next.lo - (cur.lo + binW)) > adjTol) break;
+            const newWidth = next.lo + binW - cand[lo].lo;
+            if (newWidth > widthLimit + binW * 0.05) break;
+            hi++;
+          }
+          let vol = 0,
+            peakBinVol = -1,
+            hiAtMaxVol = cand[centerIdx].hiAtMaxVol;
+          for (let i = lo; i <= hi; i++) {
+            vol += cand[i].vol;
+            if (cand[i].vol > peakBinVol) {
+              peakBinVol = cand[i].vol;
+              hiAtMaxVol = cand[i].hiAtMaxVol;
+            }
+          }
+          return {
+            startLo: cand[lo].lo,
+            endTop: cand[hi].lo + binW,
+            vol,
+            peakBinVol,
+            hiAtMaxVol
+          };
+        };
+        let peakWall = null,
+          nearWall = null,
+          wall = null;
+        if (cand.length) {
+          let maxVolIdx = 0;
+          for (let i = 1; i < cand.length; i++) {
+            if (cand[i].vol > cand[maxVolIdx].vol) maxVolIdx = i;
+          }
+          peakWall = buildWallAt(maxVolIdx);
+          nearWall = buildWallAt(0);
+          const peakDist = (peakWall.startLo - price) / price;
+          const candidate = peakDist <= NEAR_PCT ? peakWall : nearWall;
+          if (candidate.vol >= wallFloor) {
+            wall = candidate;
+          }
+        }
+        if (wall) {
+          const wallMult = vol17Avg > 0 ? wall.vol / vol17Avg : 0;
+          const WALL_L1 = 2,
+            WALL_L2 = 4,
+            WALL_L3 = 8;
+          const level = wallMult >= WALL_L3 ? 3 : wallMult >= WALL_L2 ? 2 : wallMult >= WALL_L1 ? 1 : 0;
+          prevHigh = {
+            price: r2(wall.hiAtMaxVol),
+            lots: Math.round(wall.vol / 1000),
+            level,
+            date: ''
+          };
+        }
+      }
+    }
+    const todayBar = paired.length ? paired[paired.length - 1] : null;
+    const todayLo = todayBar ? todayBar.lo : price;
+    const todayClose = price;
+    const todayRange = todayHi - todayLo;
+    const closePos = todayRange > 0 ? (todayClose - todayLo) / todayRange : 0.5;
+    const sema3Arr = semaSeries[17] || [];
+    const sema1Arr = semaSeries[6] || [];
+    const sema2Arr = semaSeries[11] || [];
+    let breakDays = 0;
+    for (let i = closes.length - 1; i >= 0; i--) {
+      const s3 = sema3Arr[i];
+      if (s3 == null || isNaN(s3)) break;
+      if (closes[i] < s3) breakDays++;else break;
+    }
+    let aboveDays = 0;
+    for (let i = closes.length - 1; i >= 0; i--) {
+      const s3 = sema3Arr[i];
+      if (s3 == null || isNaN(s3)) break;
+      if (closes[i] >= s3) aboveDays++;else break;
+    }
+    const slopeDown = arr => {
+      const v = arr.filter(x => x != null && !isNaN(x));
+      if (v.length < 2) return false;
+      return v[v.length - 1] < v[v.length - 2];
+    };
+    const belowSema3 = breakDays >= 3;
+    const steadyAbove = aboveDays >= 3;
+    const s1Down = slopeDown(sema1Arr);
+    const s2Down = slopeDown(sema2Arr);
+    const vol17 = volMA(paired.length - 1, 17);
+    const lowLiquidity = isTw && vol17 < 1000;
+    const isDRStock = /DR$/i.test((finalName || '').trim()) || /-DR/i.test(finalName || '');
+    const recentPV = paired.slice(-5).map(p => ({
+      close: p.raw,
+      lots: Math.round((p.vol || 0) / 1000)
+    }));
+    setData({
+      code,
+      name: finalName,
+      price,
+      change,
+      changePct,
+      limitState,
+      semas: chosen,
+      allSemas: semaSnapshot,
+      semaSeries,
+      dbg,
+      yHi17: hi17,
+      yLo17: lo17,
+      tradeDate: tradeDateStr,
+      volLots: lastVolLots,
+      volRatio,
+      vol45Ratio,
+      volSeries,
+      intraday,
+      high60,
+      isNewHigh60,
+      closePos,
+      todayHi,
+      todayLo,
+      prevHigh,
+      fibMsg,
+      divergePct13,
+      headPriceDown13,
+      down3High,
+      belowSema3,
+      breakDays,
+      s1Down,
+      s2Down,
+      aboveDays,
+      steadyAbove,
+      isBearStock,
+      vol17: Math.round(vol17),
+      lowLiquidity,
+      isDRStock,
+      isTw,
+      recentPV,
+      nearHighMsg,
+      wavePosMsg,
+      waveTargets,
+      lowVolToday,
+      lowVolYesterday
+    });
+    setLoading(false);
+    analyzingRef.current = false;
+    setSysMsg(`${finalName} 分析完成 ✓`);
+    setTimeout(() => {
+      if (priceRowRef.current) priceRowRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }, 100);
+  }, []);
+  const stopAnalyze = useCallback(() => {
+    analyzingRef.current = false;
+    setLoading(false);
+    setSysMsg('已終止');
+  }, []);
+  const addWatch = () => {
+    if (data && !watchlist.find(w => w.code === data.code)) {
+      setWatchlist(prev => [...prev, {
+        code: data.code,
+        name: data.name
+      }]);
+    }
+  };
+  if (!guardPassed) {
+    return <div style={{
+      minHeight: '100vh',
+      background: 'radial-gradient(ellipse at top, #0d1424 0%, #060a14 60%, #03060d 100%)',
+      color: '#e8e8ec',
+      fontFamily: '"Noto Sans TC", system-ui, sans-serif',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px 18px',
+      boxSizing: 'border-box'
+    }}>
+        <div style={{
+        width: '100%',
+        maxWidth: 360,
+        textAlign: 'center'
+      }}>
+          <div style={{
+          fontSize: 44,
+          marginBottom: 10
+        }}>☀️</div>
+          <div style={{
+          fontSize: 22,
+          fontWeight: 900,
+          color: '#e0b020',
+          letterSpacing: 2,
+          marginBottom: 6
+        }}>小太陽守護系統</div>
+          {guardLocked ? <div style={{
+          marginTop: 24,
+          padding: '20px 18px',
+          borderRadius: 12,
+          background: 'rgba(180,40,40,0.15)',
+          border: '1px solid rgba(220,80,80,0.4)'
+        }}>
+              <div style={{
+            fontSize: 16,
+            fontWeight: 800,
+            color: '#ff8888',
+            lineHeight: 1.6
+          }}>非陳老師親友<br />無法使用本系統</div>
+            </div> : <>
+            <div style={{
+            fontSize: 13,
+            color: '#9fb0c8',
+            marginBottom: 24,
+            lineHeight: 1.6
+          }}>陳老師親友專屬 · 請輸入小太陽守護碼</div>
+            <input value={guardInput} onChange={e => setGuardInput(e.target.value)} onKeyDown={e => {
+            if (e.key === 'Enter') tryGuard();
+          }} type="password" inputMode="numeric" placeholder="守護碼" autoFocus style={{
+            width: '100%',
+            height: 48,
+            boxSizing: 'border-box',
+            padding: '0 14px',
+            fontSize: 18,
+            textAlign: 'center',
+            letterSpacing: 4,
+            borderRadius: 12,
+            border: '1px solid rgba(127,168,208,0.4)',
+            background: 'rgba(255,255,255,0.06)',
+            color: '#fff',
+            outline: 'none',
+            marginBottom: 12
+          }} />
+            <button onClick={tryGuard} style={{
+            width: '100%',
+            height: 48,
+            fontSize: 17,
+            fontWeight: 800,
+            borderRadius: 12,
+            border: 'none',
+            cursor: 'pointer',
+            background: 'linear-gradient(180deg, #3a4a64, #2a3650)',
+            color: '#fff',
+            letterSpacing: 4
+          }}>進　入</button>
+            {guardTries > 0 && <div style={{
+            marginTop: 14,
+            fontSize: 13,
+            color: '#ff8888'
+          }}>守護碼錯誤，尚可嘗試 {3 - guardTries} 次</div>}
+          </>}
+        </div>
+      </div>;
+  }
+  return <div style={{
+    minHeight: '100vh',
+    background: 'radial-gradient(ellipse at top, #0d1424 0%, #060a14 60%, #03060d 100%)',
+    color: '#e8e8ec',
+    fontFamily: '"Noto Sans TC", system-ui, sans-serif',
+    padding: '20px 18px',
+    boxSizing: 'border-box',
+    overflowX: 'hidden',
+    width: '100%'
+  }}>
+      <div style={{
+      maxWidth: 480,
+      margin: '0 auto',
+      width: '100%',
+      boxSizing: 'border-box'
+    }}>
+
+        <div style={{
+        marginBottom: 4
+      }}>
+          <span style={{
+          fontSize: 18,
+          color: '#e0b020',
+          letterSpacing: 2,
+          fontWeight: 800
+        }}>小太陽守護系統</span>
+          <span style={{
+          fontSize: 12,
+          color: '#7fa8d0',
+          marginLeft: 8,
+          fontWeight: 600
+        }}>生日快樂版 v2.0</span>
+        </div>
+        {}
+        <div style={{
+        marginBottom: 2,
+        textAlign: 'left'
+      }}>
+          <span style={{
+          fontSize: 11,
+          color: '#7fa8d0',
+          whiteSpace: 'nowrap'
+        }}>{nowClock}</span>
+        </div>
+        {}
+        <div style={{
+        marginBottom: 6,
+        textAlign: 'left'
+      }}>
+          <span style={{
+          fontSize: 11,
+          color: '#ffffff',
+          fontWeight: 400
+        }}>(本系統為盤後版，同學切勿使用盤中資訊決策，避免誤判)</span>
+        </div>
+
+        {}
+        <div style={{
+        overflow: 'hidden',
+        whiteSpace: 'nowrap',
+        marginBottom: 12,
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        padding: '4px 0'
+      }}>
+          <div style={{
+          display: 'flex',
+          width: 'max-content',
+          animation: 'sunnyMarquee 30s linear infinite',
+          fontSize: 11,
+          color: '#e0c850'
+        }}>
+            <span style={{
+            flexShrink: 0,
+            paddingRight: 80
+          }}>⚠️ 本守護系統所提供之資訊僅供參考，不保證資料之即時性與正確性，亦不構成任何投資建議。股市存在風險，同學們應審慎評估自身財務狀況與風險承受能力，嚴禁因倚仗有小太陽的守護，就使用融資、開槓桿、賭身家。所有交易決策請自行判斷，並自負盈虧責任。陳老師恕不負責！</span>
+            <span style={{
+            flexShrink: 0,
+            paddingRight: 80
+          }}>⚠️ 本守護系統所提供之資訊僅供參考，不保證資料之即時性與正確性，亦不構成任何投資建議。股市存在風險，同學們應審慎評估自身財務狀況與風險承受能力，嚴禁因倚仗有小太陽的守護，就使用融資、開槓桿、賭身家。所有交易決策請自行判斷，並自負盈虧責任。陳老師恕不負責！</span>
+          </div>
+        </div>
+        <style>{`@keyframes sunnyMarquee { 0%{transform:translateX(0);} 100%{transform:translateX(-50%);} }
+          @keyframes sunnySpin { to { transform: rotate(360deg); } }
+          .sunny-spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(127,168,208,0.3); border-top-color: #7fa8d0; border-radius: 50%; animation: sunnySpin 0.7s linear infinite; }
+          .sunny-metal-btn { transition: border-bottom-color 0.06s, filter 0.06s, box-shadow 0.06s; }
+          .sunny-metal-btn:active:not(:disabled) { border-bottom-color: transparent !important; filter: brightness(0.9); box-shadow: inset 0 2px 4px rgba(0,0,0,0.4) !important; }`}</style>
+
+        <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr 1fr',
+        gap: 8,
+        marginBottom: 8,
+        alignItems: 'stretch'
+      }}>
+          <input value={input} onChange={e => {
+          const v = e.target.value;
+          setInput(v);
+          const code = v.trim().toUpperCase();
+          const mem = code ? readWaveMem(code) : null;
+          if (mem) {
+            setWaveL1(mem.l1 || '');
+            setWaveH1(mem.h1 || '');
+            setWaveL2(mem.l2 || '');
+          }
+        }} onFocus={() => {
+          setInput('');
+          setWaveL1('');
+          setWaveH1('');
+          setWaveL2('');
+        }} onKeyDown={e => {
+          if (e.key === 'Enter') analyze(input);
+        }} placeholder="股票代碼" maxLength={10} style={{
+          width: '100%',
+          minWidth: 0,
+          height: 44,
+          boxSizing: 'border-box',
+          padding: '0 12px',
+          fontSize: 15,
+          borderRadius: 10,
+          textAlign: 'center',
+          border: '1px solid rgba(127,168,208,0.5)',
+          background: 'rgba(255,255,255,0.08)',
+          color: '#fff',
+          outline: 'none'
+        }} />
+          <div style={{
+          minWidth: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 6,
+          boxSizing: 'border-box'
+        }}>
+            {loading && <span className="sunny-spinner" />}
+            <span style={{
+            fontSize: 12,
+            color: errorMsg ? '#ff8a8a' : '#6b7a99',
+            textAlign: 'center',
+            lineHeight: 1.2
+          }}>{errorMsg || sysMsg}</span>
+          </div>
+          <button onClick={() => loading ? stopAnalyze() : analyze(input)} className="sunny-metal-btn" style={{
+          width: '100%',
+          minWidth: 0,
+          height: 44,
+          boxSizing: 'border-box',
+          fontSize: 17,
+          fontWeight: 800,
+          letterSpacing: 8,
+          textIndent: 8,
+          borderRadius: 10,
+          whiteSpace: 'nowrap',
+          border: 'none',
+          borderBottom: loading ? '3px solid #5a1414' : '3px solid #020617',
+          background: loading ? 'linear-gradient(to bottom, #e88 0%, #d65a5a 50%, #a83232 100%)' : 'linear-gradient(to bottom, #cbd5e1 0%, #94a3b8 50%, #475569 100%)',
+          color: loading ? '#fff' : '#0f172a',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)',
+          cursor: 'pointer'
+        }}>{loading ? '終止' : '評估'}</button>
+        </div>
+
+        {}
+        <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr 1fr',
+        gap: 8,
+        marginBottom: 12,
+        alignItems: 'center'
+      }}>
+          {[[waveL1, setWaveL1, 'L1'], [waveH1, setWaveH1, 'H1'], [waveL2, setWaveL2, 'L2']].map(([val, setter, ph], idx) => <input key={idx} value={val} onChange={e => setter(e.target.value)} placeholder={ph} inputMode="decimal" onKeyDown={e => {
+          if (e.key === 'Enter') analyze(input);
+        }} style={{
+          width: '100%',
+          minWidth: 0,
+          height: 38,
+          boxSizing: 'border-box',
+          padding: '0 10px',
+          fontSize: 14,
+          borderRadius: 10,
+          textAlign: 'center',
+          border: '1px solid rgba(127,168,208,0.4)',
+          background: 'rgba(255,255,255,0.06)',
+          color: '#fff',
+          outline: 'none'
+        }} />)}
+        </div>
+
+        {watchlist.length > 0 && <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 6,
+        marginBottom: 12
+      }}>
+            {watchlist.map(w => <button key={w.code} onClick={() => {
+          setInput(w.code);
+          analyze(w.code);
+        }} style={{
+          padding: '4px 10px',
+          fontSize: 12,
+          borderRadius: 8,
+          border: '1px solid rgba(255,255,255,0.15)',
+          background: 'rgba(255,255,255,0.04)',
+          color: '#aab4c8',
+          cursor: 'pointer'
+        }}>{w.code} {w.name}</button>)}
+          </div>}
+
+        {data && <>
+            <div ref={priceRowRef} style={{
+          marginBottom: 6,
+          scrollMarginTop: 12
+        }}>
+              {}
+              <div style={{
+            textAlign: 'center',
+            display: 'flex',
+            alignItems: 'baseline',
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+            gap: 8
+          }}>
+                <span style={{
+              fontSize: 16,
+              fontWeight: 800,
+              color: '#cfd6e4'
+            }}>{data.name && data.name !== data.code ? `${data.code} ${data.name}` : data.code}</span>
+                {data.limitState ? <span style={{
+              display: 'inline-flex',
+              alignItems: 'baseline',
+              gap: 6,
+              padding: '2px 10px',
+              borderRadius: 7,
+              background: data.limitState === 'up' ? '#d32f2f' : '#1f8f4e'
+            }}>
+                    <span style={{
+                fontSize: 22,
+                fontWeight: 900,
+                color: '#ffffff'
+              }}>{data.price.toFixed(data.price < 50 ? 2 : 1)}</span>
+                    <span style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: '#ffffff'
+              }}>
+                      {data.change >= 0 ? '+' : ''}{data.change} ({data.change >= 0 ? '+' : ''}{data.changePct}%)
+                    </span>
+                    <span style={{
+                fontSize: 12,
+                fontWeight: 900,
+                color: '#ffffff'
+              }}>{data.limitState === 'up' ? '漲停' : '跌停'}</span>
+                  </span> : <>
+                  <span style={{
+                fontSize: 22,
+                fontWeight: 900,
+                color: data.change >= 0 ? '#ff5a5a' : '#33cc77'
+              }}>
+                    {data.price.toFixed(data.price < 50 ? 2 : 1)}
+                  </span>
+                  <span style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: data.change >= 0 ? '#ff5a5a' : '#33cc77'
+              }}>
+                    {data.change >= 0 ? '+' : ''}{data.change} ({data.change >= 0 ? '+' : ''}{data.changePct}%)
+                  </span>
+                </>}
+              </div>
+            </div>
+
+            {data.lowLiquidity || data.isDRStock ? (<div style={{
+          margin: '16px 0',
+          padding: '20px 18px',
+          borderRadius: 12,
+          background: 'rgba(200, 60, 60, 0.15)',
+          border: '1px solid rgba(230, 100, 100, 0.5)',
+          textAlign: 'center'
+        }}>
+                <div style={{
+            fontSize: 14,
+            fontWeight: 800,
+            color: '#f0b8b8',
+            lineHeight: 1.7
+          }}>
+                  {data.isDRStock ? '⚠ 此為 DR 股（存託憑證）' : '⚠ 此股票之流通性風險較高'}
+                </div>
+                <div style={{
+            fontSize: 12,
+            color: 'rgba(255,255,255,0.7)',
+            lineHeight: 1.7,
+            marginTop: 6
+          }}>
+                  本系統不予分析，亦不建議介入
+                </div>
+                <div style={{
+            fontSize: 10.5,
+            color: 'rgba(255,255,255,0.45)',
+            lineHeight: 1.6,
+            marginTop: 8
+          }}>
+                  {data.isDRStock ? '（DR股為海外母股的存託憑證，歷史價格還原方式特殊，均線數據難以驗證）' : `（${data.isTw ? '均量小於 1,000 張門檻' : '流通量偏低'}；多殺多時，低量股可能會賣不掉）`}
+                </div>
+              </div>) : <div style={{
+          margin: '16px 0'
+        }}>
+                <WaterGauge data={data} holdings={[]} onMsg={setTopMsgData} />
+              </div>}
+
+            {}
+          </>}
+
+        {}
+
+
+        <div style={{
+        marginTop: 12,
+        padding: '12px 14px',
+        background: 'rgba(255,255,255,0.03)',
+        borderRadius: 12,
+        fontSize: 11,
+        color: '#8a96ad',
+        lineHeight: 1.8
+      }}>
+          <div style={{
+          fontWeight: 700,
+          color: '#aab4c8',
+          marginBottom: 4
+        }}>水位計怎麼看</div>
+          浮球 = 現價。上方紅區是壓力、下方綠區是支撐。<br />
+          浮球往上接近壓力 → 變綠＋亮燈，提醒可分批停利，越接近閃越快。<br />
+          浮球往下接近支撐 → 變紅＋亮燈，提醒可分批買進，越接近閃越快。<br />
+          壓力/支撐後的數字越大，代表那條線的能量越強（越難突破或支撐越穩）。
+        </div>
+
+      </div>
+    </div>;
+}
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>

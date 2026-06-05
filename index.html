@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Adeli 投資分析系統</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.4/babel.min.js"></script>
+  <link rel="stylesheet" href="styles.css?v=202606021200">
+</head>
+<body class="text-slate-200">
+
+<!-- HEADER -->
+<header class="app-header">
+  <div style="display:flex;align-items:center;gap:9px;">
+    <div class="hdr-logo">A</div>
+    <div>
+      <div style="font-size: 15px;font-weight:800;color:#f1f5f9;line-height:1.2;">Adeli 投資分析</div>
+      <div style="font-size: 11px;font-weight:700;letter-spacing:0.16em;color:rgba(196,155,26,0.9);">INVESTMENT ANALYSIS</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div id="hdr-market" style="font-size: 12px;font-weight:700;letter-spacing:0.06em;color:#cbd5e1;"></div>
+    <div class="hdr-live">
+      <div class="hdr-live-dot"></div>
+      <span style="font-size: 12px;font-weight:700;letter-spacing:0.1em;color:var(--accent);">LIVE</span>
+    </div>
+    <div id="hdr-clock" style="font-family:'SF Mono','Fira Code',monospace;font-size: 14px;color:#cbd5e1;"></div>
+  </div>
+</header>
+
+<div class="app-body">
+
+  <!-- SIDEBAR (desktop) -->
+  <aside class="sidebar">
+    <div class="glass p-3">
+      <div class="sb-title" style="margin-bottom:6px;">功能</div>
+      <button class="sb-nav-btn active" data-tab="dashboard"    onclick="showTab('dashboard',this)"><span>📈</span><span>個股儀表板</span></button>
+      <button class="sb-nav-btn"        data-tab="report"       onclick="showTab('report',this)"><span>🤖</span><span>AI 分析報告</span></button>
+      <button class="sb-nav-btn"        data-tab="screener"     onclick="showTab('screener',this)"><span>🔍</span><span>選股參考</span></button>
+      <button class="sb-nav-btn"        data-tab="etf-dividend" onclick="showTab('etf-dividend',this)"><span>💰</span><span>ETF 股利</span></button>
+
+      <div class="sb-divider" style="margin-top:10px;"></div>
+      <div class="sb-title" style="margin-top:10px;">快速分析</div>
+      <button class="sb-quick" onclick="window.quickSema&&window.quickSema('SMCI')"><span>SMCI</span><span style="font-size: 12px;color:#cbd5e1;">伺服器</span></button>
+      <button class="sb-quick" onclick="window.quickSema&&window.quickSema('NVTS')"><span>NVTS</span><span style="font-size: 12px;color:#cbd5e1;">半導體</span></button>
+      <button class="sb-quick" onclick="window.quickSema&&window.quickSema('MU')"><span>MU</span><span style="font-size: 12px;color:#cbd5e1;">記憶體</span></button>
+      <button class="sb-quick" onclick="window.quickSema&&window.quickSema('NVDA')"><span>NVDA</span><span style="font-size: 12px;color:#cbd5e1;">AI晶片</span></button>
+      <button class="sb-quick" onclick="window.quickSema&&window.quickSema('2330')"><span>2330</span><span style="font-size: 12px;color:#cbd5e1;">台積電</span></button>
+      <button class="sb-quick" onclick="window.quickSema&&window.quickSema('2317')"><span>2317</span><span style="font-size: 12px;color:#cbd5e1;">鴻海</span></button>
+      <button class="sb-quick" onclick="window.quickSema&&window.quickSema('2454')"><span>2454</span><span style="font-size: 12px;color:#cbd5e1;">聯發科</span></button>
+
+      <div class="sb-divider" style="margin-top:10px;"></div>
+      <div style="padding:8px 11px 4px;">
+        <div style="font-size: 11px;color:#cbd5e1;line-height:1.7;">⚠ 本工具僅供技術分析學習，不構成投資建議。所有買賣決策請自行判斷。</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div>
+    <!-- Mobile tab nav -->
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="dashboard"    onclick="showTab('dashboard',this)">個股</button>
+      <button class="tab-btn"        data-tab="report"       onclick="showTab('report',this)">AI 報告</button>
+      <button class="tab-btn"        data-tab="screener"     onclick="showTab('screener',this)">選股</button>
+      <button class="tab-btn"        data-tab="etf-dividend" onclick="showTab('etf-dividend',this)">ETF股利</button>
+    </div>
+
+    <!-- TAB: 個股儀表板 -->
+    <div id="tab-dashboard" class="tab-panel active">
+      <div id="dashboard-root"></div>
+    </div>
+
+    <!-- TAB: 選股參考 -->
+    <div id="tab-screener" class="tab-panel">
+      <div id="screener-root"></div>
+    </div>
+
+    <!-- TAB: ETF 股利殖利率 -->
+    <div id="tab-etf-dividend" class="tab-panel">
+      <div id="etf-dividend-root"></div>
+    </div>
+
+    <!-- TAB: AI 報告 -->
+    <div id="tab-report" class="tab-panel">
+      <div class="report-grid">
+        <div>
+          <div class="glass p-5 mb-3">
+            <label class="section-label block mb-2">股票代碼</label>
+            <input id="symbol" type="text" placeholder="SMCI / AAPL / 2330.TW" class="field mb-4" oninput="this.value=this.value.toUpperCase()">
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;">
+              <span class="section-label">快捷</span>
+              <button onclick="setSymbol('SMCI')" class="quick-btn">SMCI</button>
+              <button onclick="setSymbol('NVTS')" class="quick-btn">NVTS</button>
+              <button onclick="setSymbol('MU')"   class="quick-btn">MU</button>
+              <button onclick="setSymbol('BE')"   class="quick-btn">BE</button>
+              <button onclick="setSymbol('BEX')"  class="quick-btn">BEX</button>
+            </div>
+            <button id="generate-btn" class="btn-gold">產生 AI 分析報告</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div style="background:rgba(4,8,22,0.5);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:12px;">
+              <div style="font-size: 12px;font-weight:700;letter-spacing:0.1em;color:#cbd5e1;text-transform:uppercase;margin-bottom:6px;">分析深度</div>
+              <div style="font-size: 14px;color:#cbd5e1;line-height:1.65;">多時框技術、籌碼結構、財報數據、產業趨勢</div>
+            </div>
+            <div style="background:rgba(4,8,22,0.5);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:12px;">
+              <div style="font-size: 12px;font-weight:700;letter-spacing:0.1em;color:#cbd5e1;text-transform:uppercase;margin-bottom:6px;">完成時間</div>
+              <div style="font-size: 14px;color:#cbd5e1;line-height:1.65;">約 4~8 分鐘<br>自動保存報告</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div id="status-box" class="glass p-5 hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div id="spinner" class="spinner hidden"></div>
+                <div id="status-text" style="font-size: 15px;font-weight:600;color:#e2e8f0;"></div>
+              </div>
+              <div id="timer" class="hidden" style="font-family:monospace;font-size: 15px;color:var(--accent-dim);font-weight:700;"></div>
+            </div>
+            <div id="progress-steps" class="hidden">
+              <div style="position:relative;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:1px;background:rgba(255,255,255,0.06);"></div>
+                <div id="progress-fill" style="position:absolute;left:0;top:50%;transform:translateY(-50%);height:1px;background:linear-gradient(90deg,var(--accent-dim),var(--accent));width:0%;transition:width 0.7s;"></div>
+                <div class="dot dot-idle z-10" id="dot-0"></div>
+                <div class="dot dot-idle z-10" id="dot-1"></div>
+                <div class="dot dot-idle z-10" id="dot-2"></div>
+                <div class="dot dot-idle z-10" id="dot-3"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:0 2px;">
+                <span class="section-label" style="width:36px;text-align:center;" id="lbl-0">送出</span>
+                <span class="section-label" style="width:36px;text-align:center;" id="lbl-1">佇列</span>
+                <span class="section-label" style="width:36px;text-align:center;" id="lbl-2">分析</span>
+                <span class="section-label" style="width:36px;text-align:center;" id="lbl-3">完成</span>
+              </div>
+            </div>
+            <div id="download-section" class="hidden" style="margin-top:18px;text-align:center;">
+              <a id="download-btn" href="#" target="_blank"
+                 style="display:inline-block;padding:12px 28px;border-radius:10px;font-size: 16px;font-weight:800;
+                        color:#050c1a;background:var(--gradient-btn);
+                        text-decoration:none;letter-spacing:0.04em;">
+                開啟報告
+              </a>
+            </div>
+          </div>
+          <div id="report-placeholder" class="glass p-5" style="display:flex;align-items:center;justify-content:center;min-height:180px;">
+            <div style="text-align:center;">
+              <div style="font-size: 36px;margin-bottom:10px;">🤖</div>
+              <div style="font-size: 15px;color:#cbd5e1;font-weight:600;">輸入代碼，點擊產生報告</div>
+              <div style="font-size: 13px;color:#cbd5e1;margin-top:4px;">AI 深度分析，約 5–10 分鐘</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gold-divider" style="margin:22px 0 20px;"></div>
+
+      <div style="margin-bottom:22px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:0 2px;">
+          <span class="section-label">今日摘要</span>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span id="cards-date" style="font-size: 13px;font-family:monospace;color:#cbd5e1;"></span>
+            <button onclick="loadCards()" style="font-size: 14px;color:#cbd5e1;cursor:pointer;background:none;border:none;padding:0;"
+              onmouseover="this.style.color='#cbd5e1'" onmouseout="this.style.color='#cbd5e1'">↺ 重新整理</button>
+          </div>
+        </div>
+        <div id="cards-container" class="cards-grid"></div>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:0 2px;">
+          <span class="section-label">已有報告</span>
+          <button onclick="loadReports()" style="font-size: 14px;color:#cbd5e1;cursor:pointer;background:none;border:none;padding:0;"
+            onmouseover="this.style.color='#cbd5e1'" onmouseout="this.style.color='#cbd5e1'">↺ 重新整理</button>
+        </div>
+        <div id="reports-container"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="help-root"></div>
+
+<script src="utils.js?v=202606040000"></script>
+<script src="app.js?v=202606021200"></script>
+<script type="text/babel" src="sema.js?v=202606021200" data-presets="react"></script>
+<script type="text/babel" src="screener.js?v=202606021200" data-presets="react"></script>
+<script type="text/babel" src="dashboard.js?v=202606021200" data-presets="react"></script>
+<script type="text/babel" src="etf-dividend.js?v=202606021200" data-presets="react"></script>
+<script type="text/babel" src="help.js?v=202606021200" data-presets="react"></script>
+</body>
+</html>
