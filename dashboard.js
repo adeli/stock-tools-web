@@ -234,31 +234,21 @@
         <StatsPanel data={data} />
         <WaterGauge data={data} gaugeW={gaugeW} />
 
-        {/* AI 報告按鈕 */}
-        <div style={{ display: 'grid', gridTemplateColumns: showReport ? '1fr 1fr' : '1fr', gap: 10, marginTop: 14 }}>
-          {showReport && (
+        {/* AI 報告按鈕（僅當有現有報告時顯示） */}
+        {showReport && (
+          <div style={{ marginTop: 14 }}>
             <button
               onClick={() => window.open(match.html_link, '_blank')}
               style={{
-                padding: '11px 0', borderRadius: 9, fontWeight: 800, fontSize: 14,
+                width: '100%', padding: '11px 0', borderRadius: 9, fontWeight: 800, fontSize: 14,
                 border: 'none', cursor: 'pointer', color: '#050c1a',
                 background: 'linear-gradient(135deg,#15803d,#4ade80)',
               }}
             >
               AI 報告 {fmtDate(match.date)}
             </button>
-          )}
-          <button
-            onClick={() => onGoReport(dispSym)}
-            style={{
-              padding: '11px 0', borderRadius: 9, fontWeight: 800, fontSize: 14,
-              border: 'none', cursor: 'pointer', color: '#050c1a',
-              background: 'linear-gradient(135deg,#2563eb,#93c5fd)',
-            }}
-          >
-            產生 AI 報告
-          </button>
-        </div>
+          </div>
+        )}
       </div>
     );
   }
