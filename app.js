@@ -213,6 +213,7 @@ async function loadCards() {
     }
     const allCards = data.cards || [];
     const cards = allCards.filter(c => isReportCurrent(c.date, /^\d{4,6}$/.test(c.symbol)));
+    renderReports(rData);
     if (!cards.length) {
       container.innerHTML = `<div style="text-align:center;padding:14px;color:#cbd5e1;font-size: 15px;">今日尚無分析</div>`; return;
     }

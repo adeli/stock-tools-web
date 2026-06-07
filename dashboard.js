@@ -111,16 +111,39 @@
               </span>
             )}
           </div>
-          {data && (
-            <div style={{ flexShrink: 0 }}>
-              <span style={{ fontSize: 14, fontWeight: 800, color: chgColor, fontFamily: 'monospace' }}>
-                {data.price.toFixed(data.price < 50 ? 2 : 1)}
-              </span>
-              <span style={{ fontSize: 11, color: chgColor, marginLeft: 3 }}>
-                {chg >= 0 ? '+' : ''}{data.changePct}%
-              </span>
-            </div>
-          )}
+          {data && (() => {
+            const ip = data.intraday_prices;
+            const hasSpark = ip && ip.length > 1;
+            const sparkSvg = hasSpark ? (() => {
+              const w = 72, h = 28;
+              const min = Math.min(...ip), max = Math.max(...ip), range = max - min || 1;
+              const pts = ip.map((p, i) =>
+                `${(i / (ip.length - 1) * w).toFixed(1)},${(h - (p - min) / range * h).toFixed(1)}`
+              ).join(' ');
+              const up = ip[ip.length - 1] >= ip[0];
+              return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block">` +
+                `<polyline points="${pts}" fill="none" stroke="${up ? '#22c55e' : '#ef4444'}" stroke-width="1.5" stroke-linejoin="round"/>` +
+                `</svg>`;
+            })() : null;
+            return (
+              <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                <div>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: chgColor, fontFamily: 'monospace' }}>
+                    {data.price.toFixed(data.price < 50 ? 2 : 1)}
+                  </span>
+                  <span style={{ fontSize: 11, color: chgColor, marginLeft: 3 }}>
+                    {chg >= 0 ? '+' : ''}{data.changePct}%
+                  </span>
+                </div>
+                {sparkSvg && (
+                  <div>
+                    <div dangerouslySetInnerHTML={{ __html: sparkSvg }} />
+                    <div style={{ fontSize: 10, color: '#64748b', textAlign: 'right', letterSpacing: '0.04em' }}>TODAY 5m</div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* 載入中 */}
@@ -207,7 +230,6 @@
     const isTW      = data.code.toUpperCase().endsWith('.TW');
     const match     = reports?.find(r => r.symbol.toUpperCase().replace(/\.TW$/i, '') === dispSym.toUpperCase());
     const isCurrent = isReportCurrent(match?.date, isTW);
-    const fmtDate   = d => { const p = (d || '').split('-'); return p.length === 3 ? `${p[1]}/${p[2]}` : d; };
     const showReport = match?.html_link && isCurrent;
 
     return (
@@ -231,24 +253,15 @@
           </span>
         </div>
 
-        <StatsPanel data={data} />
         <WaterGauge data={data} gaugeW={gaugeW} />
 
-        {/* AI 報告按鈕（僅當有現有報告時顯示） */}
-        {showReport && (
-          <div style={{ marginTop: 14 }}>
-            <button
-              onClick={() => window.open(match.html_link, '_blank')}
-              style={{
-                width: '100%', padding: '11px 0', borderRadius: 9, fontWeight: 800, fontSize: 14,
-                border: 'none', cursor: 'pointer', color: '#050c1a',
-                background: 'linear-gradient(135deg,#15803d,#4ade80)',
-              }}
-            >
-              AI 報告 {fmtDate(match.date)}
-            </button>
-          </div>
-        )}
+        <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 10, background: 'rgba(96,165,250,0.05)', border: '1px solid rgba(96,165,250,0.12)', fontSize: 13, color: '#cbd5e1', lineHeight: 1.8 }}>
+          <div style={{ fontWeight: 700, color: 'var(--accent)', marginBottom: 4, fontSize: 14 }}>水位計怎麼看</div>
+          浮球 = 現價。上方紅區是壓力、下方綠區是支撐。<br />
+          浮球往上接近壓力 → 變綠＋亮燈，提醒可分批停利，越接近閃越快。<br />
+          浮球往下接近支撐 → 變紅＋亮燈，提醒可分批買進，越接近閃越快。<br />
+          壓力/支撐後的數字越大，代表那條線的能量越強（越難突破或支撐越穩）。
+        </div>
       </div>
     );
   }
@@ -338,7 +351,6 @@
         setBatchData(prev => ({ ...prev, [json.code]: json }));
         setSelectedSym(json.code);
         setSysMsg(`${json.name} 分析完成 ✓`);
-        setTimeout(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
       } catch (e) {
         setSysMsg(`分析失敗：${e.message}`);
       } finally {
@@ -360,7 +372,6 @@
     const handleSelect = sym => {
       setSelectedSym(prev => {
         const next = prev === sym ? null : sym;
-        if (next) setTimeout(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
         return next;
       });
     };

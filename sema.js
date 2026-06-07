@@ -424,7 +424,8 @@ function WaterGauge({ data, gaugeW: W = 120 }) {
   const ballY = toY(price);
 
   const pctText = v => { const d=((v-price)/price)*100,r=d.toFixed(1); return `${parseFloat(r)===0?'':(d>=0?'+':'')}${r==='-0.0'?'0.0':r}%`; };
-  const { topMsg, topSubMsg, botMsg, botSubMsg, topTextColor } = computeGaugeMessages(data);
+  const { topMsg, topSubMsg, botMsg, botSubMsg, topTextColor, dR, dS } = computeGaugeMessages(data);
+  const towardResist = dR < dS;
 
   const numOf = s => parseInt(semaNum(s.label),10)||0;
   const eps = price*0.001;
@@ -477,7 +478,7 @@ function WaterGauge({ data, gaugeW: W = 120 }) {
 
       <div style={{marginBottom:8,padding:'10px 12px',borderRadius:9,minHeight:54,boxSizing:'border-box',display:'flex',flexDirection:'column',justifyContent:'center',
         background:'rgba(40,170,100,0.18)', border:'1px solid rgba(80,200,130,0.55)'}}>
-        <div style={{fontSize:14,fontWeight:800,color:topTextColor,lineHeight:1.5}}>{topMsg}</div>
+        <div style={{fontSize:14,fontWeight:800,color:topTextColor,lineHeight:1.5}}>{towardResist ? '✓ 浮球偏綠，靠近壓力 · ' : ''}{topMsg}</div>
         {topSubMsg && <div style={{fontSize:12,color:'rgba(255,255,255,0.6)',lineHeight:1.5,marginTop:2}}>{topSubMsg}</div>}
       </div>
 
@@ -665,7 +666,7 @@ function WaterGauge({ data, gaugeW: W = 120 }) {
       })()}
 
       <div style={{marginTop:8,padding:'10px 12px',borderRadius:9,minHeight:54,boxSizing:'border-box',display:'flex',flexDirection:'column',justifyContent:'center',background:'rgba(200,60,60,0.18)',border:'1px solid rgba(230,100,100,0.55)'}}>
-        <div style={{fontSize:14,fontWeight:800,color:'#f0b8b8',lineHeight:1.5}}>{botMsg}</div>
+        <div style={{fontSize:14,fontWeight:800,color:'#f0b8b8',lineHeight:1.5}}>{towardResist ? '' : '✓ 浮球偏紅，靠近支撐 · '}{botMsg}</div>
         {botSubMsg && <div style={{fontSize:12,color:'rgba(255,255,255,0.6)',lineHeight:1.5,marginTop:2}}>{botSubMsg}</div>}
       </div>
     </div>
