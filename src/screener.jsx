@@ -1,3 +1,7 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { WORKER_URL } from './app.js';
+
 // ── Screener Tab ──────────────────────────────────────────────────────────────
 
 

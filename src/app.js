@@ -1,3 +1,5 @@
+import { isReportCurrent } from './utils.js';
+
 // ── Tab switching + Header clock ──
 
 function showTab(name, btn) {
@@ -33,7 +35,7 @@ function showTab(name, btn) {
 
 // ── AI Report + History ──
 
-const WORKER_URL = 'https://stock-tools.adelitwo.workers.dev';
+export const WORKER_URL = 'https://stock-tools.adelitwo.workers.dev';
 
 window.fetchSemaBatch = async function(symbols) {
   const CHUNK = 10;
@@ -290,3 +292,9 @@ async function loadCards() {
     reportsContainer.innerHTML = `<div style="text-align:center;padding:14px;color:#6b7280;font-size: 14px;">載入失敗，請稍後再試</div>`;
   }
 }
+
+// HTML onclick 屬性呼叫這些函數，需要掛到 window
+window.showTab = showTab;
+window.loadCards = loadCards;
+window.loadReports = loadReports;
+window.setSymbol = setSymbol;

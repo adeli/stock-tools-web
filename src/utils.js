@@ -1,15 +1,14 @@
-// ── 報告有效期判斷（台股 vs 美股使用不同時區） ──
-function tzDateStr(tz, d = new Date()) {
+export function tzDateStr(tz, d = new Date()) {
   const p = new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d);
   const g = t => p.find(x => x.type === t).value;
   return `${g('year')}-${g('month')}-${g('day')}`;
 }
-function tzTimeStr(tz, d = new Date()) {
+export function tzTimeStr(tz, d = new Date()) {
   const p = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d);
   const g = t => p.find(x => x.type === t).value;
   return `${g('hour')}:${g('minute')}`;
 }
-function isReportCurrent(reportDate, isTW) {
+export function isReportCurrent(reportDate, isTW) {
   if (!reportDate) return false;
   const date = reportDate.replace(/\//g, '-');
   const now = new Date();

@@ -1,3 +1,8 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { isReportCurrent } from './utils.js';
+import { r2, computeGaugeMessages, WaterGauge, PriceRail } from './sema.jsx';
+
 (function () {
   const { useState, useEffect, useRef, useCallback } = React;
 

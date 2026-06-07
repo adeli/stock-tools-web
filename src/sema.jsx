@@ -1,8 +1,11 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+
 // 參考版本: 生日快樂版 v1.97 (sunny_app_reference.html)
 const { useState, useEffect, useRef, useCallback } = React;
 const SEMA_API = 'https://stock-tools.adelitwo.workers.dev/sema';
 
-const r2 = n => Math.round(n * 100) / 100;
+export const r2 = n => Math.round(n * 100) / 100;
 
 const SEMA_COLORS = {
   SEMA1:'#ff4d4d', SEMA2:'#ff8c42', SEMA3:'#ffb627', SEMA4:'#e8d44d', SEMA5:'#7ed957',
@@ -99,7 +102,7 @@ const breakdownAdvice = (data, redLight, nextLabel, nearRisingBigBottom, nearRes
     reason:'已連續跌破短中均線，趨勢轉弱，宜留意；若短均接連下彎、反彈無量，宜考慮出場' };
 };
 
-function computeGaugeMessages(data) {
+export function computeGaugeMessages(data) {
   const { price, semas } = data;
   const allSemas = data.allSemas || semas;
   const semaSeq = lbl => { const m = /SEMA(\d+)/.exec(lbl || ''); return m ? parseInt(m[1], 10) : 0; };
@@ -340,7 +343,7 @@ function computeBallColor(data) {
   return { ballColor, glowColor, blinkDur, sellTarget, buyTargetUp };
 }
 
-function WaterGauge({ data, gaugeW: W = 120 }) {
+export function WaterGauge({ data, gaugeW: W = 120 }) {
   const H       = Math.round(W * 3.125);
   const LEAD_W  = W * 2;
   const xL      = Math.round(W * 0.1);
@@ -756,7 +759,7 @@ function StatsPanel({ data }) {
 }
 
 // ── PriceRail 位階尺 ──
-function PriceRail({ data }) {
+export function PriceRail({ data }) {
   const { price, semas } = data;
   const ph = data.prevHigh;
   const vals = [price, ...semas.map(s => s.value)];

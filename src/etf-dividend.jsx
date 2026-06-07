@@ -1,3 +1,6 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+
 // ── ETF 股利殖利率 Tab ────────────────────────────────────────────────────────
 
 (function () {
