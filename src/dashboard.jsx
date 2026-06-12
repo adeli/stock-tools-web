@@ -321,12 +321,14 @@ import { r2, computeGaugeMessages, WaterGauge, PriceRail } from './sema.jsx';
     }, []);
 
     // 載入報告清單
-    useEffect(() => {
+    const fetchReports = useCallback(() => {
       fetch(`${_API}/reports`)
         .then(r => r.json())
         .then(d => setReports(d.reports || []))
         .catch(() => {});
     }, []);
+
+    useEffect(() => { fetchReports(); }, [fetchReports]);
 
     // 批次載入 watchlist 資料
     const loadBatch = useCallback(() => {
@@ -417,7 +419,7 @@ import { r2, computeGaugeMessages, WaterGauge, PriceRail } from './sema.jsx';
               {loading ? '分析中...' : '執行'}
             </button>
             <button
-              onClick={loadBatch}
+              onClick={() => { loadBatch(); fetchReports(); }}
               title="重新整理"
               style={{
                 flexShrink: 0, padding: '12px 14px', borderRadius: 10, fontSize: 16,

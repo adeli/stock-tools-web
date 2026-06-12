@@ -161,8 +161,8 @@ btn.addEventListener('click', async () => {
               downloadBtn.href = match.html_link;
               downloadBtn.textContent = '開啟報告';
             }
-            renderReports(rData);
-          } catch { loadReports(); }
+          } catch {}
+          loadCards();
         }, 3000);
       } else if (data.status === 'failure') {
         clearInterval(poll); stopTimer('#ef4444'); spinner.classList.add('hidden');
@@ -189,7 +189,9 @@ function sparkline(prices, w, h) {
 }
 
 function getSignalTag(c) {
-  const v = c.verdict || (typeof c.trade_strategy === 'object' ? c.trade_strategy?.action : '');
+  // 優先用最終決策（trade_strategy.action），其次 verdict（多空力道合成），保持一致
+  const tsAction = typeof c.trade_strategy === 'object' ? c.trade_strategy?.action : '';
+  const v = tsAction || c.verdict || '';
   if (v === 'BUY')     return { label:'看多', c:'#22c55e', bg:'rgba(34,197,94,0.1)',  bd:'rgba(34,197,94,0.25)' };
   if (v === 'SELL')    return { label:'看空', c:'#ef4444', bg:'rgba(239,68,68,0.1)', bd:'rgba(239,68,68,0.25)' };
   if (v === 'NEUTRAL') return { label:'觀望', c:'var(--accent)', bg:'var(--accent-a08)', bd:'var(--accent-a25)' };
@@ -209,15 +211,15 @@ async function loadCards() {
     const reportLinkMap = {};
     for (const r of (rData.reports || [])) {
       if (!reportLinkMap[r.symbol]) {
-        const isTW = /^\d{4,6}$/.test(r.symbol);
-        if (isReportCurrent(r.date, isTW)) reportLinkMap[r.symbol] = r.html_link;
+        const isTW = /^\d{4,6}$/.test(r.symbol.replace(/\.TW$/i, ''));
+        if (isReportCurrent(r.date, isTW)) reportLinkMap[r.symbol.toUpperCase().replace(/\.TW$/i, '')] = r.html_link;
       }
     }
     const allCards = data.cards || [];
     const cards = allCards.filter(c => isReportCurrent(c.date, /^\d{4,6}$/.test(c.symbol)));
-    renderReports(rData);
     if (!cards.length) {
-      container.innerHTML = `<div style="text-align:center;padding:14px;color:#cbd5e1;font-size: 15px;">今日尚無分析</div>`; return;
+      container.innerHTML = `<div style="text-align:center;padding:14px;color:#cbd5e1;font-size: 15px;">今日尚無分析</div>`;
+      renderReports(rData); return;
     }
     const dateEl = document.getElementById('cards-date');
     if (dateEl && cards[0]?.date) dateEl.textContent = cards[0].date;
@@ -280,8 +282,8 @@ async function loadCards() {
         </div>
         ${strategy}${intraday}
         <div style="margin-top:10px;text-align:right;">
-          ${(reportLinkMap[c.symbol]||'#') !== '#'
-            ? `<a href="${reportLinkMap[c.symbol]}" target="_blank" style="font-size: 13px;font-weight:700;color:var(--accent);text-decoration:none;" onmouseover="this.style.opacity=0.65" onmouseout="this.style.opacity=1">完整報告 →</a>`
+          ${(reportLinkMap[c.symbol.toUpperCase().replace(/\.TW$/i,'')]||'#') !== '#'
+            ? `<a href="${reportLinkMap[c.symbol.toUpperCase().replace(/\.TW$/i,'')]}" target="_blank" style="font-size: 13px;font-weight:700;color:var(--accent);text-decoration:none;" onmouseover="this.style.opacity=0.65" onmouseout="this.style.opacity=1">完整報告 →</a>`
             : ''}
         </div>
       </div>`;
