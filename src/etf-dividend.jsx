@@ -54,6 +54,25 @@ import ReactDOM from 'react-dom/client';
 
   const FREQ_PPY = { '月配': 12, '雙月配': 6, '季配': 4, '半年配': 2, '年配': 1 };
 
+  // 優先用近 12 個月實際加總；資料不足時退回 avgPay × ppy 推算
+  function calcAnnual(divs, ppy) {
+    const now = new Date();
+    const cutoff = new Date(now);
+    cutoff.setFullYear(cutoff.getFullYear() - 1);
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+
+    const paid = divs.filter(d => !d.pending && d.amt > 0);
+    const trailing = paid.filter(d => d.date >= cutoffStr);
+
+    if (trailing.length >= ppy) {
+      const sum = parseFloat(trailing.reduce((s, d) => s + d.amt, 0).toFixed(4));
+      return { annual: sum, isEstimate: false };
+    }
+    // 資料不足，推算
+    const avg = paid.length ? paid.reduce((s, d) => s + d.amt, 0) / paid.length : 0;
+    return { annual: parseFloat((avg * ppy).toFixed(4)), isEstimate: true };
+  }
+
   function freqColor(freq) {
     if (freq === '月配')   return '#93c5fd';
     if (freq === '雙月配') return '#7dd3fc';
@@ -163,10 +182,9 @@ import ReactDOM from 'react-dom/client';
             const paidCnt = paid.length;
             const freq    = detectFreq(e.divs);           // 用間隔眾數判斷
             const ppy     = FREQ_PPY[freq] ?? 1;
-            const avgPay  = paidCnt > 0 ? total / paidCnt : 0;
-            const annual  = parseFloat((avgPay * ppy).toFixed(4));
+            const { annual, isEstimate } = calcAnnual(e.divs, ppy);
             const latest  = paid[0]?.date?.slice(0, 7) ?? '';
-            return { ...e, total, annual, freq, latest, cnt: paidCnt };
+            return { ...e, total, annual, isEstimate, freq, latest, cnt: paidCnt };
           })
           .filter(e => e.total > 0);
 
@@ -420,7 +438,7 @@ import ReactDOM from 'react-dom/client';
                       background: 'rgba(0,0,0,0.22)',
                     }}>
                       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.label, marginBottom: 10 }}>
-                        今年配息記錄（{e.cnt} 次已公告，除息日）
+                        近期配息記錄（{e.cnt} 次已公告，除息日）
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {e.divs.filter(d => !d.pending).map((d, i) => (
@@ -450,8 +468,11 @@ import ReactDOM from 'react-dom/client';
                       </div>
                       {e.annual > 0 && (
                         <div style={{ marginTop: 10, fontSize: 12, color: C.dim }}>
-                          年化估算：今年已配 {e.total.toFixed(4)} 元 × 年化倍率
-                          → <span style={{ color: C.hi, fontWeight: 700 }}>{e.annual.toFixed(4)}</span> 元/年
+                          {e.isEstimate
+                            ? `推算（資料不足）：平均每次 × ${FREQ_PPY[e.freq] ?? 1} →`
+                            : '近 12 個月實際加總 →'}
+                          {' '}<span style={{ color: C.hi, fontWeight: 700 }}>{e.annual.toFixed(4)}</span> 元/年
+                          {e.isEstimate && <span style={{ color: '#fde68a', marginLeft: 6 }}>估算</span>}
                         </div>
                       )}
                     </div>
@@ -463,8 +484,8 @@ import ReactDOM from 'react-dom/client';
             {displayed.length > 0 && (
               <div style={{ padding: '10px 16px', borderTop: '1px solid rgba(255,255,255,0.05)',
                 fontSize: 11, color: C.label, lineHeight: 1.7 }}>
-                點擊任一列展開今年配息詳情 ·
-                年化殖利率 = 年化估算配息 ÷ 即時股價（根據配息頻率推算全年）
+                點擊任一列展開近期配息詳情 ·
+                年化殖利率 = 近 12 個月配息加總 ÷ 即時股價（資料不足者改用平均推算）
               </div>
             )}
           </div>
