@@ -342,8 +342,8 @@ import ReactDOM from 'react-dom/client';
           <div className="glass p-4" style={{ color: '#f87171' }}>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>載入失敗：{error}</div>
             <div style={{ fontSize: 12, color: C.dim, lineHeight: 1.7 }}>
-              可能原因：網路問題或瀏覽器 CORS 限制（twse.com.tw）。<br />
-              請重新整理，或改用 Chrome / Edge 瀏覽器。
+              可能原因：網路問題、VPN / 海外 IP 被擋，或瀏覽器 CORS 限制（twse.com.tw 僅開放台灣 IP）。<br />
+              請關閉 VPN 後重新整理，或改用 Chrome / Edge 瀏覽器。
             </div>
           </div>
         )}
