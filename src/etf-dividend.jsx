@@ -96,19 +96,23 @@ import ReactDOM from 'react-dom/client';
     return json;
   }
 
-  // 抓全市場收盤價（TWSE STOCK_DAY_ALL，支援 CORS，fields[7] = 收盤價）
+  // 抓全市場收盤價（TWSE STOCK_DAY_ALL 回傳 CSV）
+  // CSV 欄位：日期[0] 代號[1] 名稱[2] 成交股數[3] 成交金額[4] 開盤[5] 最高[6] 最低[7] 收盤[8] 漲跌[9] 成交筆數[10]
   async function loadPrices(codes) {
     const codeSet = new Set(codes);
     const map = {};
     try {
       const r = await fetch(
-        'https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL?response=json',
+        'https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL',
         { cache: 'no-store' }
       );
-      const d = await r.json();
-      for (const row of d.data || []) {
-        const code  = row[0]?.trim();
-        const price = parseFloat((row[7] || '').replace(/,/g, ''));
+      if (!r.ok) return map;
+      const text = await r.text();
+      const lines = text.trim().split('\n').slice(1); // 跳過表頭
+      for (const line of lines) {
+        const cols = line.split(',').map(c => c.replace(/[\r"]/g, '').trim());
+        const code  = cols[1];
+        const price = parseFloat(cols[8]);
         if (codeSet.has(code) && price > 0) map[code] = price;
       }
     } catch (_) {}
