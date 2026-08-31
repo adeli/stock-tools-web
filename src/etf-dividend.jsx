@@ -6,6 +6,17 @@ import ReactDOM from 'react-dom/client';
 (function () {
   const { useState, useEffect, useCallback } = React;
 
+  function useIsMobile() {
+    const get = () => window.innerWidth < 600;
+    const [v, setV] = useState(get);
+    useEffect(() => {
+      const fn = () => setV(get());
+      window.addEventListener('resize', fn);
+      return () => window.removeEventListener('resize', fn);
+    }, []);
+    return v;
+  }
+
   const C = {
     hi:    '#f1f5f9',
     mid:   '#e2e8f0',
@@ -122,6 +133,7 @@ import ReactDOM from 'react-dom/client';
   // ── 主元件 ──────────────────────────────────────────────────────────────────
 
   function EtfDividendPage() {
+    const isMobile = useIsMobile();
     const [rows,      setRows]      = useState([]);
     const [loading,   setLoading]   = useState(false);
     const [error,     setError]     = useState(null);
@@ -376,20 +388,58 @@ import ReactDOM from 'react-dom/client';
         {!loading && !error && rows.length > 0 && (
           <div className="glass" style={{ overflowX: 'auto' }}>
 
-            {/* 表頭 */}
-            <div style={{
-              display: 'grid', gridTemplateColumns: COLS,
-              padding: '10px 16px', gap: 8,
-              borderBottom: '1px solid rgba(255,255,255,0.08)',
-              minWidth: 500,
-            }}>
-              <ColHdr k="code"     label="代號"      />
-              <ColHdr k="name"     label="名稱"      />
-              <ColHdr k="price"    label="現價"    align="right" />
-              <ColHdr k="annual"   label="年化配息" align="right" />
-              <ColHdr k="yieldAnn" label="年化殖利率" align="right" />
-              <ColHdr k={null}     label="頻率"    align="right" />
-            </div>
+            {/* 表頭（桌機） */}
+            {!isMobile && (
+              <div style={{
+                display: 'grid', gridTemplateColumns: COLS,
+                padding: '10px 16px', gap: 8,
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
+                minWidth: 500,
+              }}>
+                <ColHdr k="code"     label="代號"      />
+                <ColHdr k="name"     label="名稱"      />
+                <ColHdr k="price"    label="現價"    align="right" />
+                <ColHdr k="annual"   label="年化配息" align="right" />
+                <ColHdr k="yieldAnn" label="年化殖利率" align="right" />
+                <ColHdr k={null}     label="頻率"    align="right" />
+              </div>
+            )}
+
+            {/* 排序列（手機） */}
+            {isMobile && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '10px 14px',
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
+              }}>
+                <span style={{ fontSize: 12, color: C.label, flexShrink: 0 }}>排序</span>
+                <select
+                  value={sort.key}
+                  onChange={ev => setSort({ key: ev.target.value, dir: ev.target.value === 'code' ? 1 : -1 })}
+                  style={{
+                    flex: 1, background: 'rgba(4,8,22,0.7)',
+                    border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8,
+                    padding: '6px 10px', color: C.hi, fontSize: 13, outline: 'none',
+                  }}
+                >
+                  <option value="yieldAnn">年化殖利率</option>
+                  <option value="annual">年化配息</option>
+                  <option value="price">現價</option>
+                  <option value="code">代號</option>
+                </select>
+                <button
+                  onClick={() => setSort(s => ({ ...s, dir: -s.dir }))}
+                  style={{
+                    flexShrink: 0, background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8,
+                    padding: '6px 12px', color: C.mid, fontSize: 13, fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {sort.dir > 0 ? '↑ 由小到大' : '↓ 由大到小'}
+                </button>
+              </div>
+            )}
 
             {displayed.length === 0 && (
               <div style={{ padding: 32, textAlign: 'center', color: C.dim }}>
@@ -402,6 +452,46 @@ import ReactDOM from 'react-dom/client';
               const pendingDivs = e.divs.filter(d => d.pending);
               return (
                 <div key={e.code}>
+                  {isMobile ? (
+                    <div
+                      onClick={() => setExpanded(isExp ? null : e.code)}
+                      className="glass-hover"
+                      style={{
+                        padding: '13px 16px',
+                        borderBottom: `1px solid rgba(255,255,255,${isExp ? '0.1' : '0.05'})`,
+                        cursor: 'pointer',
+                        background: isExp ? 'rgba(96,165,250,0.04)' : 'transparent',
+                      }}
+                    >
+                      {/* 第一行：代號 + 頻率 */}
+                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+                        <span style={{ fontFamily: 'monospace', fontSize: 16, fontWeight: 800, color: C.hi }}>{e.code}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: freqColor(e.freq), flexShrink: 0 }}>{e.freq}</span>
+                      </div>
+                      {/* 第二行：完整名稱（可換行，不截斷） */}
+                      <div style={{ fontSize: 13, color: C.mid, lineHeight: 1.45, marginTop: 3 }}>
+                        {e.name.replace(/基金$/, '').trim()}
+                      </div>
+                      {/* 第三行：現價 / 年化配息 / 年化殖利率 */}
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 18, marginTop: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 13, color: C.label }}>
+                          現價 <span style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 700, color: C.hi }}>
+                            {e.price != null ? e.price.toFixed(2) : '—'}
+                          </span>
+                        </span>
+                        <span style={{ fontSize: 13, color: C.label }}>
+                          配息 <span style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 700, color: C.mid }}>
+                            {e.annual > 0 ? e.annual.toFixed(4) : '—'}
+                          </span>
+                        </span>
+                        <span style={{ fontSize: 13, color: C.label }}>
+                          殖利率 {e.yieldAnn != null
+                            ? <span style={{ fontFamily: 'monospace', fontSize: 16, fontWeight: 900, color: yieldColor(e.yieldAnn) }}>{e.yieldAnn.toFixed(2)}%</span>
+                            : <span style={{ color: C.label }}>—</span>}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
                   <div
                     onClick={() => setExpanded(isExp ? null : e.code)}
                     className="glass-hover"
@@ -433,6 +523,7 @@ import ReactDOM from 'react-dom/client';
                       {e.freq}
                     </div>
                   </div>
+                  )}
 
                   {/* 展開：配息歷史 */}
                   {isExp && (
