@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
-// 參考版本: 生日快樂版 v1.97 (sunny_app_reference.html)
+// 參考版本: 生日快樂版 v2.03 (sunny_app_reference.html) — 含 CDP 樞紐點、休市日假K棒剔除
 const { useState, useEffect, useRef, useCallback } = React;
 const SEMA_API = 'https://stock-tools.adelitwo.workers.dev/sema';
 
@@ -508,6 +508,23 @@ export function WaterGauge({ data, gaugeW: W = 120 }) {
               <span style={{color:fg,fontWeight:800,whiteSpace:'nowrap'}}>{t.lvl}</span>
             </div>;
           })}
+        </div>
+      )}
+
+      {data.cdpVals && (
+        <div style={{display:'flex',gap:3,marginBottom:8}}>
+          {[
+            {k:'強支撐',v:data.cdpVals.al, bg:'rgba(46,160,90,0.16)', fg:'#7fd9a0'},
+            {k:'主支撐',v:data.cdpVals.nl, bg:'rgba(46,160,90,0.24)', fg:'#8fe0ad'},
+            {k:'多空分界',v:data.cdpVals.cdp,bg:'rgba(150,150,150,0.18)',fg:'#d8dde6'},
+            {k:'主壓力',v:data.cdpVals.nh, bg:'rgba(200,60,50,0.22)', fg:'#ff9a90'},
+            {k:'強壓力',v:data.cdpVals.ah, bg:'rgba(200,60,50,0.16)', fg:'#ff8f85'},
+          ].map(c => (
+            <div key={c.k} style={{flex:1,background:c.bg,borderRadius:5,padding:'2px 1px',textAlign:'center',boxSizing:'border-box'}}>
+              <div style={{fontSize:10,fontWeight:700,color:c.fg,opacity:0.8,lineHeight:1.2,whiteSpace:'nowrap'}}>{c.k}</div>
+              <div style={{fontSize:10,fontWeight:800,color:c.fg,lineHeight:1.2}}>{c.v}</div>
+            </div>
+          ))}
         </div>
       )}
 
