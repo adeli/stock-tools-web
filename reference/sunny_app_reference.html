@@ -1468,6 +1468,64 @@ function WaterGauge({
        </div>
       </div>
 
+      {data.cdpVals && <div style={{
+      marginTop: 8,
+      marginBottom: 8
+    }}>
+          <div style={{
+        display: 'flex',
+        gap: 3
+      }}>
+            {[{
+          k: '強支撐',
+          v: data.cdpVals.al,
+          bg: 'rgba(46,160,90,0.16)',
+          fg: '#7fd9a0'
+        }, {
+          k: '主支撐',
+          v: data.cdpVals.nl,
+          bg: 'rgba(46,160,90,0.24)',
+          fg: '#8fe0ad'
+        }, {
+          k: '多空分界',
+          v: data.cdpVals.cdp,
+          bg: 'rgba(150,150,150,0.18)',
+          fg: '#d8dde6'
+        }, {
+          k: '主壓力',
+          v: data.cdpVals.nh,
+          bg: 'rgba(200,60,50,0.22)',
+          fg: '#ff9a90'
+        }, {
+          k: '強壓力',
+          v: data.cdpVals.ah,
+          bg: 'rgba(200,60,50,0.16)',
+          fg: '#ff8f85'
+        }].map(c => <div key={c.k} style={{
+          flex: 1,
+          background: c.bg,
+          borderRadius: 5,
+          padding: '2px 1px',
+          textAlign: 'center',
+          boxSizing: 'border-box'
+        }}>
+                <div style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: c.fg,
+            opacity: 0.8,
+            lineHeight: 1.2,
+            whiteSpace: 'nowrap'
+          }}>{c.k}</div>
+                <div style={{
+            fontSize: 10,
+            fontWeight: 800,
+            color: c.fg,
+            lineHeight: 1.2
+          }}>{c.v}</div>
+              </div>)}
+          </div>
+        </div>}
       {}
       <div style={{
       marginTop: 8,
@@ -1662,27 +1720,55 @@ function App() {
     for (let i = 0; i < closeArr.length; i++) {
       const adj = adjArr[i];
       const raw = closeArr[i];
-      if (adj !== null && adj !== undefined && !isNaN(adj)) {
-        const ratio = raw && adj ? adj / raw : 1;
+      if (raw !== null && raw !== undefined && !isNaN(raw)) {
+        const adjValid = adj !== null && adj !== undefined && !isNaN(adj);
+        const ratio = adjValid && raw && adj ? adj / raw : 1;
         const rawHi_pre = highArr[i] != null && !isNaN(highArr[i]) ? highArr[i] : null;
         const rawLo_valid = lowArr[i] != null && !isNaN(lowArr[i]) && lowArr[i] > 0 ? lowArr[i] : null;
-        const hi = rawHi_pre != null ? rawHi_pre * ratio : adj;
-        const lo = rawLo_valid != null ? rawLo_valid * ratio : rawHi_pre != null && raw ? (raw + rawHi_pre) / 2 * ratio : adj;
-        const rawHi = rawHi_pre != null ? rawHi_pre : raw !== null && raw !== undefined && !isNaN(raw) ? raw : adj;
-        const rawLo = rawLo_valid != null ? rawLo_valid : rawHi != null && raw ? (raw + rawHi) / 2 : raw !== null && raw !== undefined && !isNaN(raw) ? raw : adj;
+        const hi = rawHi_pre != null ? rawHi_pre * ratio : raw;
+        const lo = rawLo_valid != null ? rawLo_valid * ratio : rawHi_pre != null && raw ? (raw + rawHi_pre) / 2 * ratio : raw;
+        const rawHi = rawHi_pre != null ? rawHi_pre : raw;
+        const rawLo = rawLo_valid != null ? rawLo_valid : rawHi != null && raw ? (raw + rawHi) / 2 : raw;
+        const _v = volArr[i] || 0;
+        // ★v2.03 剔除休市日假K棒: Yahoo對颱風假等非交易日會回傳「前一日收盤價、量0」的佔位資料
+        //   判準保守: 量=0「且」高=低=收 兩者同時成立才剔除
+        //   (只看量=0會誤殺量極清淡的冷門股; 只看高=低=收會誤殺漲跌停鎖死的真K棒→絕不可砍)
+        if (_v === 0 && rawHi === rawLo && rawLo === raw) continue;
         paired.push({
           ts: tsArr[i] || i,
-          adj,
-          raw: raw !== null && raw !== undefined && !isNaN(raw) ? raw : adj,
+          adj: adjValid ? adj : raw,
+          raw,
           hi,
           lo,
           rawHi,
           rawLo,
-          vol: volArr[i] || 0
+          vol: _v
         });
       }
     }
     paired.sort((a, b) => a.ts - b.ts);
+    if (!isTw && paired.length > 0) {
+      const etP = ms => {
+        const f = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+        const o = {};
+        for (const x of f.formatToParts(new Date(ms))) o[x.type] = x.value;
+        return {
+          date: o.year + '-' + o.month + '-' + o.day,
+          min: parseInt(o.hour) * 60 + parseInt(o.minute)
+        };
+      };
+      const lastET = etP(paired[paired.length - 1].ts * 1000);
+      const nowET = etP(Date.now());
+      if (lastET.date === nowET.date && nowET.min < 16 * 60) paired.pop();
+    }
     const validData = paired.map(p => p.raw);
     const rawCloses = paired.map(p => p.raw);
     const adjCloses = paired.map(p => p.adj);
@@ -1699,6 +1785,23 @@ function App() {
     const prevClose = r2(validData[validData.length - 2]);
     const change = r2(price - prevClose);
     const changePct = r2(change / prevClose * 100);
+    let cdpVals = null;
+    {
+      const _lp = paired[paired.length - 1];
+      const _h = _lp ? _lp.rawHi : null,
+        _l = _lp ? _lp.rawLo : null,
+        _c = _lp ? _lp.raw : null;
+      if (_h != null && _l != null && _c != null && _h > 0 && _l > 0) {
+        const cdp = (_h + _l + _c * 2) / 4;
+        cdpVals = {
+          ah: r2(cdp + (_h - _l)),
+          nh: r2(cdp * 2 - _l),
+          cdp: r2(cdp),
+          nl: r2(cdp * 2 - _h),
+          al: r2(cdp - (_h - _l))
+        };
+      }
+    }
     let limitState = null;
     if (isTw && prevClose > 0) {
       const tickOf = p => p < 10 ? 0.01 : p < 50 ? 0.05 : p < 100 ? 0.1 : p < 500 ? 0.5 : p < 1000 ? 1 : 5;
@@ -2193,7 +2296,8 @@ function App() {
       wavePosMsg,
       waveTargets,
       lowVolToday,
-      lowVolYesterday
+      lowVolYesterday,
+      cdpVals
     });
     setLoading(false);
     analyzingRef.current = false;
@@ -2335,7 +2439,7 @@ function App() {
           color: '#7fa8d0',
           marginLeft: 8,
           fontWeight: 600
-        }}>生日快樂版 v2.0</span>
+        }}>生日快樂版 v2.03</span>
         </div>
         {}
         <div style={{
@@ -2357,7 +2461,7 @@ function App() {
           fontSize: 11,
           color: '#ffffff',
           fontWeight: 400
-        }}>(本系統為盤後版，同學切勿使用盤中資訊決策，避免誤判)</span>
+        }}>⚠️本系統為盤後版，同學切勿使用盤中資訊決策，避免誤判</span>
         </div>
 
         {}
@@ -2379,11 +2483,11 @@ function App() {
             <span style={{
             flexShrink: 0,
             paddingRight: 80
-          }}>⚠️ 本守護系統所提供之資訊僅供參考，不保證資料之即時性與正確性，亦不構成任何投資建議。股市存在風險，同學們應審慎評估自身財務狀況與風險承受能力，嚴禁因倚仗有小太陽的守護，就使用融資、開槓桿、賭身家。所有交易決策請自行判斷，並自負盈虧責任。陳老師恕不負責！</span>
+          }}>⚠️本守護系統所提供之資訊僅供參考，不保證資料之即時性與正確性，亦不構成任何投資建議。股市存在風險，同學們應審慎評估自身財務狀況與風險承受能力，嚴禁因倚仗有小太陽的守護，就使用融資、開槓桿、賭身家。所有交易決策請自行判斷，並自負盈虧責任。陳老師恕不負責！</span>
             <span style={{
             flexShrink: 0,
             paddingRight: 80
-          }}>⚠️ 本守護系統所提供之資訊僅供參考，不保證資料之即時性與正確性，亦不構成任何投資建議。股市存在風險，同學們應審慎評估自身財務狀況與風險承受能力，嚴禁因倚仗有小太陽的守護，就使用融資、開槓桿、賭身家。所有交易決策請自行判斷，並自負盈虧責任。陳老師恕不負責！</span>
+          }}>⚠️本守護系統所提供之資訊僅供參考，不保證資料之即時性與正確性，亦不構成任何投資建議。股市存在風險，同學們應審慎評估自身財務狀況與風險承受能力，嚴禁因倚仗有小太陽的守護，就使用融資、開槓桿、賭身家。所有交易決策請自行判斷，並自負盈虧責任。陳老師恕不負責！</span>
           </div>
         </div>
         <style>{`@keyframes sunnyMarquee { 0%{transform:translateX(0);} 100%{transform:translateX(-50%);} }
