@@ -65,6 +65,13 @@ import { WORKER_URL } from './app.js';
     if (gp > 0)   return '#86efac';
     return '#f87171';
   }
+  function yieldColor(y) {
+    if (y >= 6) return '#4ade80';
+    if (y >= 4) return '#86efac';
+    if (y >= 2) return '#fde68a';
+    return C.mid;
+  }
+  const FREQ_SHORT = { '月配':'月', '雙月配':'雙月', '季配':'季', '半年配':'半年', '年配':'年' };
   function fmtDate(iso) {
     if (!iso) return null;
     const d = new Date(iso), p = n => String(n).padStart(2,'0');
@@ -98,6 +105,8 @@ import { WORKER_URL } from './app.js';
   function DesktopRow({ r, rank, onView }) {
     const gp = r.eps?.growth_pct, accel = r.eps?.accelerating, chg = r.changePct;
     const meta = metaFor(r), isEtf = r.source === 'etf';
+    const yld = r.dividend?.yield_pct, dfreq = FREQ_SHORT[r.dividend?.freq];
+    const dEst = r.dividend?.estimate ? '~' : '';
     return (
       <div onClick={() => onView(r.code)} className="glass-hover" style={{
         display:'grid', gridTemplateColumns:COLS, alignItems:'center',
@@ -120,7 +129,14 @@ import { WORKER_URL } from './app.js';
             <div style={{ fontSize:15, fontWeight:700, fontFamily:'monospace', lineHeight:1.2, color:epsColor(gp) }}>
               {gp > 0 ? '+' : ''}{gp.toFixed(0)}%{accel ? '↑' : ''}
             </div>
-            <div style={{ fontSize:11, color:C.mid, marginTop:2 }}>EPS YoY</div>
+            <div style={{ fontSize:11, color:C.mid, marginTop:2 }}>
+              EPS YoY{yld != null && <span style={{ color:C.label }}> · 殖 {dEst}{yld}%</span>}
+            </div>
+          </>) : yld != null ? (<>
+            <div style={{ fontSize:15, fontWeight:700, fontFamily:'monospace', lineHeight:1.2, color:yieldColor(yld) }}>
+              {dEst}{yld}%
+            </div>
+            <div style={{ fontSize:11, color:C.mid, marginTop:2 }}>殖利率{dfreq ? ` · ${dfreq}` : ''}</div>
           </>) : <div style={{ fontSize:14, color:C.label }}>—</div>}
         </div>
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
@@ -141,6 +157,8 @@ import { WORKER_URL } from './app.js';
   function MobileCard({ r, rank, onView }) {
     const gp = r.eps?.growth_pct, accel = r.eps?.accelerating, chg = r.changePct;
     const meta = metaFor(r), isEtf = r.source === 'etf';
+    const yld = r.dividend?.yield_pct, dfreq = FREQ_SHORT[r.dividend?.freq];
+    const dEst = r.dividend?.estimate ? '~' : '';
     return (
       <div onClick={() => onView(r.code)} className="glass-hover" style={{
         padding:'14px 16px',
@@ -174,14 +192,23 @@ import { WORKER_URL } from './app.js';
             <span style={{ fontSize:20, fontWeight:900, fontFamily:'monospace', color:rsColor(r.rs_rating) }}>{r.rs_rating}</span>
             <span style={{ fontSize:11, color:C.mid }}>RS</span>
           </div>
-          {gp != null ? (
+          {gp != null && (
             <div style={{ display:'flex', alignItems:'baseline', gap:4 }}>
               <span style={{ fontSize:15, fontWeight:700, fontFamily:'monospace', color:epsColor(gp) }}>
                 {gp > 0 ? '+' : ''}{gp.toFixed(0)}%{accel ? '↑' : ''}
               </span>
               <span style={{ fontSize:11, color:C.mid }}>EPS</span>
             </div>
-          ) : !isEtf && (
+          )}
+          {yld != null && (
+            <div style={{ display:'flex', alignItems:'baseline', gap:4 }}>
+              <span style={{ fontSize:15, fontWeight:700, fontFamily:'monospace', color:yieldColor(yld) }}>
+                {dEst}{yld}%
+              </span>
+              <span style={{ fontSize:11, color:C.mid }}>殖利率{dfreq ? `·${dfreq}` : ''}</span>
+            </div>
+          )}
+          {gp == null && yld == null && !isEtf && (
             <span style={{ fontSize:13, color:C.label }}>EPS —</span>
           )}
           <div style={{ display:'flex', alignItems:'center', gap:6, marginLeft:'auto' }}>
@@ -249,7 +276,7 @@ import { WORKER_URL } from './app.js';
               {!isMobile && (
                 <div style={{ display:'grid', gridTemplateColumns:COLS, gap:10, padding:'9px 16px',
                   borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
-                  {['#','代號','RS','EPS','訊號','價格'].map((h,i) => (
+                  {['#','代號','RS','EPS/殖利','訊號','價格'].map((h,i) => (
                     <div key={i} style={{ fontSize:11, fontWeight:700, letterSpacing:'0.12em',
                       color:C.label, textTransform:'uppercase',
                       textAlign: i===0 ? 'right' : i>=2 ? 'center' : 'left' }}>{h}</div>
