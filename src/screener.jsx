@@ -20,14 +20,23 @@ import { WORKER_URL } from './app.js';
     return v;
   }
 
-  const SIGNAL_META = [
+  // 個股訊號（後端 batch.py 個股路徑產生的 5 個）
+  const SIGNAL_META_STOCK = [
     { key: 'rs_strong',   label: 'RS≥85', title: 'RS Rating ≥ 85' },
     { key: 'eps_25',      label: 'EPS25', title: 'EPS 成長 ≥ 25%' },
     { key: 'eps_accel',   label: 'EPS↑',  title: 'EPS 加速成長' },
     { key: 'near_high',   label: '近高',  title: '接近 52 週高點或創 60 日新高' },
     { key: 'vol_surge',   label: '爆量',  title: '量能爆量（vol45Ratio ≥ 1.5）' },
-    { key: 'sema_rising', label: 'SEMA',  title: 'SEMA5 + SEMA8 同時上彎' },
   ];
+  // ETF 訊號（無 EPS，改用價量 / 均線型）
+  const SIGNAL_META_ETF = [
+    { key: 'rs_strong',   label: 'RS≥85', title: 'RS Rating ≥ 85（ETF 獨立成池計算）' },
+    { key: 'near_high',   label: '近高',  title: '接近 52 週高點或創 60 日新高' },
+    { key: 'vol_surge',   label: '爆量',  title: '量能爆量（vol45Ratio ≥ 1.5）' },
+    { key: 'trend_up',    label: '站均',  title: '股價站上 SEMA3 持穩 ≥ 3 日' },
+    { key: 'sema_rising', label: 'SEMA',  title: 'SEMA1 + SEMA2 同時上彎' },
+  ];
+  const metaFor = r => (r && r.source === 'etf' ? SIGNAL_META_ETF : SIGNAL_META_STOCK);
 
   const COLS = '28px minmax(0,1fr) 54px 76px 70px 84px';
 
@@ -62,10 +71,10 @@ import { WORKER_URL } from './app.js';
     return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
   }
 
-  function SignalDots({ signals }) {
+  function SignalDots({ signals, meta = SIGNAL_META_STOCK }) {
     return (
       <div style={{ display:'flex', gap:4 }}>
-        {SIGNAL_META.map(({ key, title }) => (
+        {meta.map(({ key, title }) => (
           <div key={key} title={title} style={{
             width:10, height:10, borderRadius:'50%', flexShrink:0,
             background: signals[key] ? '#60a5fa' : C.dot_off,
@@ -75,9 +84,20 @@ import { WORKER_URL } from './app.js';
     );
   }
 
+  function EtfBadge() {
+    return (
+      <span style={{
+        fontSize:10, fontWeight:700, letterSpacing:'0.06em',
+        color:'#fbbf24', border:'1px solid rgba(251,191,36,0.5)',
+        borderRadius:4, padding:'1px 4px', verticalAlign:'middle',
+      }}>ETF</span>
+    );
+  }
+
   // ── Desktop row（寬螢幕）────────────────────────────────────────────────────
   function DesktopRow({ r, rank, onView }) {
     const gp = r.eps?.growth_pct, accel = r.eps?.accelerating, chg = r.changePct;
+    const meta = metaFor(r), isEtf = r.source === 'etf';
     return (
       <div onClick={() => onView(r.code)} className="glass-hover" style={{
         display:'grid', gridTemplateColumns:COLS, alignItems:'center',
@@ -86,7 +106,9 @@ import { WORKER_URL } from './app.js';
       }}>
         <div style={{ fontSize:13, color:C.dim, fontFamily:'monospace', textAlign:'right' }}>{rank}</div>
         <div style={{ minWidth:0 }}>
-          <div style={{ fontSize:17, fontWeight:800, color:C.hi, lineHeight:1.2 }}>{r.code}</div>
+          <div style={{ fontSize:17, fontWeight:800, color:C.hi, lineHeight:1.2, display:'flex', alignItems:'center', gap:6 }}>
+            {r.code}{isEtf && <EtfBadge />}
+          </div>
           <div style={{ fontSize:13, color:C.mid, marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.name}</div>
         </div>
         <div style={{ textAlign:'center' }}>
@@ -102,8 +124,8 @@ import { WORKER_URL } from './app.js';
           </>) : <div style={{ fontSize:14, color:C.label }}>—</div>}
         </div>
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
-          <SignalDots signals={r.signals} />
-          <div style={{ fontSize:11, color:C.mid }}>{r.signals_hit}/6</div>
+          <SignalDots signals={r.signals} meta={meta} />
+          <div style={{ fontSize:11, color:C.mid }}>{r.signals_hit}/{meta.length}</div>
         </div>
         <div style={{ textAlign:'right' }}>
           <div style={{ fontSize:15, fontWeight:700, fontFamily:'monospace', color:C.hi, lineHeight:1.2 }}>{r.price}</div>
@@ -118,6 +140,7 @@ import { WORKER_URL } from './app.js';
   // ── Mobile card（小螢幕）────────────────────────────────────────────────────
   function MobileCard({ r, rank, onView }) {
     const gp = r.eps?.growth_pct, accel = r.eps?.accelerating, chg = r.changePct;
+    const meta = metaFor(r), isEtf = r.source === 'etf';
     return (
       <div onClick={() => onView(r.code)} className="glass-hover" style={{
         padding:'14px 16px',
@@ -129,9 +152,10 @@ import { WORKER_URL } from './app.js';
             <span style={{ fontSize:12, color:C.dim, fontFamily:'monospace', flexShrink:0 }}>{rank}</span>
             <div style={{ minWidth:0 }}>
               <span style={{ fontSize:18, fontWeight:800, color:C.hi }}>{r.code}</span>
+              {isEtf && <span style={{ marginLeft:6 }}><EtfBadge /></span>}
               <span style={{ fontSize:13, color:C.mid, marginLeft:7,
                 overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
-                display:'inline-block', maxWidth:140, verticalAlign:'middle' }}>
+                display:'inline-block', maxWidth:120, verticalAlign:'middle' }}>
                 {r.name}
               </span>
             </div>
@@ -157,12 +181,12 @@ import { WORKER_URL } from './app.js';
               </span>
               <span style={{ fontSize:11, color:C.mid }}>EPS</span>
             </div>
-          ) : (
+          ) : !isEtf && (
             <span style={{ fontSize:13, color:C.label }}>EPS —</span>
           )}
           <div style={{ display:'flex', alignItems:'center', gap:6, marginLeft:'auto' }}>
-            <SignalDots signals={r.signals} />
-            <span style={{ fontSize:12, color:C.mid }}>{r.signals_hit}/6</span>
+            <SignalDots signals={r.signals} meta={meta} />
+            <span style={{ fontSize:12, color:C.mid }}>{r.signals_hit}/{meta.length}</span>
           </div>
         </div>
       </div>
@@ -180,6 +204,12 @@ import { WORKER_URL } from './app.js';
     const label = market === 'tw' ? '台股' : '美股';
     const results = data?.results || [];
     const scanAt  = fmtDate(data?.scanned_at);
+    const hasStock = results.some(r => r.source !== 'etf');
+    const hasEtf   = results.some(r => r.source === 'etf');
+    const legendMeta = [
+      ...(hasStock ? SIGNAL_META_STOCK : []),
+      ...(hasEtf ? SIGNAL_META_ETF.filter(m => !(hasStock && SIGNAL_META_STOCK.some(s => s.key === m.key))) : []),
+    ];
     return (
       <div style={{ marginBottom:28 }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
@@ -229,12 +259,19 @@ import { WORKER_URL } from './app.js';
               {results.map((r,i) => <ResultRow key={r.code} r={r} rank={i+1} onView={onView} isMobile={isMobile} />)}
               <div style={{ display:'flex', flexWrap:'wrap', gap:'6px 16px',
                 padding:'10px 16px', borderTop:'1px solid rgba(255,255,255,0.06)' }}>
-                {SIGNAL_META.map(({ key, label, title }) => (
+                {legendMeta.map(({ key, label, title }) => (
                   <div key={key} style={{ display:'flex', alignItems:'center', gap:5 }}>
                     <div style={{ width:8, height:8, borderRadius:'50%', background:'#60a5fa', flexShrink:0 }} />
                     <span style={{ fontSize:12, color:C.label }} title={title}>{label}</span>
                   </div>
                 ))}
+                {hasEtf && (
+                  <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                    <span style={{ fontSize:10, fontWeight:700, letterSpacing:'0.06em', color:'#fbbf24',
+                      border:'1px solid rgba(251,191,36,0.5)', borderRadius:4, padding:'1px 4px' }}>ETF</span>
+                    <span style={{ fontSize:12, color:C.label }}>無 EPS，改用價量／均線型訊號</span>
+                  </div>
+                )}
               </div>
             </>
           )}
