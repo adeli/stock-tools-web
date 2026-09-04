@@ -101,22 +101,128 @@ import { WORKER_URL } from './app.js';
     );
   }
 
+  function Chevron({ open }) {
+    return (
+      <span style={{ display:'inline-block', fontSize:11, color:C.label, flexShrink:0,
+        transform: open ? 'rotate(90deg)' : 'none', transition:'transform 0.15s' }}>▶</span>
+    );
+  }
+
+  // ── 展開明細（就地展開，資料全來自 result row 內的 sema_data / dividend）───────
+  const WAVE_LABEL = { B:'量能正常', C:'量縮打底', D:'量縮後轉強' };
+
+  function Stat({ label, value, color }) {
+    return (
+      <div style={{ minWidth:0 }}>
+        <div style={{ fontSize:10, color:C.label, letterSpacing:'0.05em' }}>{label}</div>
+        <div style={{ fontSize:13, fontWeight:700, fontFamily:'monospace', color: color || C.mid }}>{value}</div>
+      </div>
+    );
+  }
+
+  function Levels({ title, arr, price, dir }) {
+    const pct = v => `${v > price ? '+' : ''}${((v - price) / price * 100).toFixed(1)}%`;
+    return (
+      <div style={{ display:'flex', alignItems:'baseline', gap:10, flexWrap:'wrap' }}>
+        <span style={{ fontSize:11, color:C.label, minWidth:30 }}>{title}</span>
+        {arr.length ? arr.map(s => (
+          <span key={s.label} style={{ fontSize:12, fontFamily:'monospace',
+            color: dir === 'up' ? '#f87171' : '#4ade80' }}>
+            {s.value}
+            <span style={{ color:C.label, fontSize:10 }}> {s.label} {pct(s.value)}</span>
+          </span>
+        )) : (
+          <span style={{ fontSize:12, color:C.label }}>
+            {dir === 'up' ? '上方無壓（創高格局）' : '下方無支撐'}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  function RowDetail({ r, onFullView }) {
+    const sd     = r.sema_data || {};
+    const price  = sd.price ?? r.price;
+    const semas  = sd.semas || [];
+    const resist = semas.filter(s => s.value >= price);
+    const support= semas.filter(s => s.value <  price);
+    const meta   = metaFor(r);
+    const d      = r.dividend;
+    const num    = n => (n != null ? n.toLocaleString() : '—');
+
+    return (
+      <div style={{ padding:'14px 16px 16px', background:'rgba(255,255,255,0.035)',
+        borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:12 }}>
+          <Levels title="壓力" arr={resist}  price={price} dir="up" />
+          <Levels title="支撐" arr={support} price={price} dir="down" />
+        </div>
+
+        <div style={{ display:'flex', flexWrap:'wrap', gap:'10px 20px', marginBottom:12 }}>
+          <Stat label="45日量比" value={sd.vol45Ratio != null ? `${sd.vol45Ratio}×` : '—'}
+                color={sd.vol45Ratio >= 1.5 ? '#4ade80' : C.mid} />
+          <Stat label="今日量" value={sd.volLots != null ? `${num(sd.volLots)} 張` : '—'} />
+          <Stat label="量能型態" value={WAVE_LABEL[sd.waveState] || '—'} />
+          <Stat label="收盤位置" value={sd.closePos != null ? `當日 ${Math.round(sd.closePos * 100)}%` : '—'} />
+          <Stat label="60日新高" value={sd.isNewHigh60 ? '是' : '否'}
+                color={sd.isNewHigh60 ? '#4ade80' : C.mid} />
+          {sd.prevHigh && (
+            <Stat label="上方套牢區" value={`${sd.prevHigh.price}（${num(sd.prevHigh.lots)}張）`} />
+          )}
+        </div>
+
+        {sd.fibMsg && (
+          <div style={{ fontSize:12, color:'#fbbf24', marginBottom:12 }}>⚠ {sd.fibMsg}</div>
+        )}
+
+        <div style={{ display:'flex', flexWrap:'wrap', gap:'6px 14px', marginBottom: d ? 12 : 14 }}>
+          {meta.map(m => (
+            <span key={m.key} style={{ fontSize:12, color: r.signals[m.key] ? C.mid : C.label }}
+              title={m.title}>
+              {r.signals[m.key] ? '✓' : '✗'} {m.label}
+            </span>
+          ))}
+        </div>
+
+        {d && (
+          <div style={{ display:'flex', flexWrap:'wrap', gap:'10px 20px', marginBottom:14 }}>
+            <Stat label="配息頻率" value={d.freq} />
+            <Stat label="年化配息" value={`${d.estimate ? '~' : ''}${d.annual}`} />
+            <Stat label="近12月實配" value={`${d.ttm}`} />
+            <Stat label="殖利率"
+                  value={d.yield_pct != null ? `${d.estimate ? '~' : ''}${d.yield_pct}%` : '—'}
+                  color={d.yield_pct != null ? yieldColor(d.yield_pct) : C.mid} />
+          </div>
+        )}
+
+        <button onClick={(e) => { e.stopPropagation(); onFullView(r.code); }} style={{
+          fontSize:13, color:'#60a5fa', background:'none',
+          border:'1px solid rgba(96,165,250,0.4)', borderRadius:6,
+          padding:'5px 12px', cursor:'pointer',
+        }}>
+          完整水位計 →
+        </button>
+      </div>
+    );
+  }
+
   // ── Desktop row（寬螢幕）────────────────────────────────────────────────────
-  function DesktopRow({ r, rank, onView }) {
+  function DesktopRow({ r, rank, onClick, expanded }) {
     const gp = r.eps?.growth_pct, accel = r.eps?.accelerating, chg = r.changePct;
     const meta = metaFor(r), isEtf = r.source === 'etf';
     const yld = r.dividend?.yield_pct, dfreq = FREQ_SHORT[r.dividend?.freq];
     const dEst = r.dividend?.estimate ? '~' : '';
     return (
-      <div onClick={() => onView(r.code)} className="glass-hover" style={{
+      <div onClick={onClick} className="glass-hover" style={{
         display:'grid', gridTemplateColumns:COLS, alignItems:'center',
         gap:10, padding:'13px 16px',
         borderBottom:'1px solid rgba(255,255,255,0.06)', cursor:'pointer',
+        background: expanded ? 'rgba(96,165,250,0.08)' : undefined,
       }}>
         <div style={{ fontSize:13, color:C.dim, fontFamily:'monospace', textAlign:'right' }}>{rank}</div>
         <div style={{ minWidth:0 }}>
           <div style={{ fontSize:17, fontWeight:800, color:C.hi, lineHeight:1.2, display:'flex', alignItems:'center', gap:6 }}>
-            {r.code}{isEtf && <EtfBadge />}
+            <Chevron open={expanded} />{r.code}{isEtf && <EtfBadge />}
           </div>
           <div style={{ fontSize:13, color:C.mid, marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.name}</div>
         </div>
@@ -154,21 +260,23 @@ import { WORKER_URL } from './app.js';
   }
 
   // ── Mobile card（小螢幕）────────────────────────────────────────────────────
-  function MobileCard({ r, rank, onView }) {
+  function MobileCard({ r, rank, onClick, expanded }) {
     const gp = r.eps?.growth_pct, accel = r.eps?.accelerating, chg = r.changePct;
     const meta = metaFor(r), isEtf = r.source === 'etf';
     const yld = r.dividend?.yield_pct, dfreq = FREQ_SHORT[r.dividend?.freq];
     const dEst = r.dividend?.estimate ? '~' : '';
     return (
-      <div onClick={() => onView(r.code)} className="glass-hover" style={{
+      <div onClick={onClick} className="glass-hover" style={{
         padding:'14px 16px',
         borderBottom:'1px solid rgba(255,255,255,0.06)', cursor:'pointer',
+        background: expanded ? 'rgba(96,165,250,0.08)' : undefined,
       }}>
         {/* 第一行：排名 + 代號 + 名稱 + 價格 */}
         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
           <div style={{ display:'flex', alignItems:'baseline', gap:8, minWidth:0 }}>
             <span style={{ fontSize:12, color:C.dim, fontFamily:'monospace', flexShrink:0 }}>{rank}</span>
             <div style={{ minWidth:0 }}>
+              <Chevron open={expanded} />{' '}
               <span style={{ fontSize:18, fontWeight:800, color:C.hi }}>{r.code}</span>
               {isEtf && <span style={{ marginLeft:6 }}><EtfBadge /></span>}
               <span style={{ fontSize:13, color:C.mid, marginLeft:7,
@@ -220,14 +328,22 @@ import { WORKER_URL } from './app.js';
     );
   }
 
-  function ResultRow({ r, rank, onView, isMobile }) {
-    return isMobile
-      ? <MobileCard   r={r} rank={rank} onView={onView} />
-      : <DesktopRow   r={r} rank={rank} onView={onView} />;
+  function ResultRow({ r, rank, isMobile, expanded, onToggle, onFullView }) {
+    const row = isMobile
+      ? <MobileCard r={r} rank={rank} onClick={() => onToggle(r.code)} expanded={expanded} />
+      : <DesktopRow r={r} rank={rank} onClick={() => onToggle(r.code)} expanded={expanded} />;
+    return (
+      <>
+        {row}
+        {expanded && <RowDetail r={r} onFullView={onFullView} />}
+      </>
+    );
   }
 
   function MarketSection({ market, data, loading, error, onView }) {
     const isMobile = useIsMobile();
+    const [expanded, setExpanded] = useState(null);
+    const onToggle = code => setExpanded(c => (c === code ? null : code));
     const label = market === 'tw' ? '台股' : '美股';
     const results = data?.results || [];
     const scanAt  = fmtDate(data?.scanned_at);
@@ -283,7 +399,10 @@ import { WORKER_URL } from './app.js';
                   ))}
                 </div>
               )}
-              {results.map((r,i) => <ResultRow key={r.code} r={r} rank={i+1} onView={onView} isMobile={isMobile} />)}
+              {results.map((r,i) => (
+                <ResultRow key={r.code} r={r} rank={i+1} isMobile={isMobile}
+                  expanded={expanded === r.code} onToggle={onToggle} onFullView={onView} />
+              ))}
               <div style={{ display:'flex', flexWrap:'wrap', gap:'6px 16px',
                 padding:'10px 16px', borderTop:'1px solid rgba(255,255,255,0.06)' }}>
                 {legendMeta.map(({ key, label, title }) => (
