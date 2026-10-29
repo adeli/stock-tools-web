@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Adeli 投資分析系統</title>
-  <script type="module" crossorigin src="/stock-tools-web/assets/index-Ctn3mGkB.js"></script>
+  <script type="module" crossorigin src="/stock-tools-web/assets/index-C5F8mLhd.js"></script>
   <link rel="stylesheet" crossorigin href="/stock-tools-web/assets/index-Co1RSoWw.css">
 </head>
 <body class="text-slate-200">
@@ -39,14 +39,10 @@
       <div class="sb-title" style="margin-bottom:6px;">功能</div>
       <button class="sb-nav-btn active" data-tab="dashboard"    onclick="showTab('dashboard',this)"><span>📈</span><span>個股儀表板</span></button>
       <button class="sb-nav-btn"        data-tab="report"       onclick="showTab('report',this)"><span>🤖</span><span>AI 分析報告</span></button>
-      <button class="sb-nav-btn"        data-tab="screener"     onclick="showTab('screener',this)"><span>🔍</span><span>選股參考</span></button>
-      <button class="sb-nav-btn"        data-tab="etf-dividend" onclick="showTab('etf-dividend',this)"><span>💰</span><span>ETF 股利</span></button>
+      <button class="sb-nav-btn"        data-tab="screener"     onclick="showTab('screener',this)"><span>🎯</span><span>個股推薦</span></button>
+      <button class="sb-nav-btn"        data-tab="etf-screener" onclick="showTab('etf-screener',this)"><span>💰</span><span>ETF 推薦</span></button>
+      <button class="sb-nav-btn"        data-tab="etf-dividend" onclick="showTab('etf-dividend',this)"><span>📊</span><span>ETF 股利</span></button>
       <button class="sb-nav-btn"        onclick="window.toggleHelp && window.toggleHelp()"><span>📖</span><span>實戰說明書</span></button>
-
-      <div class="sb-divider" style="margin-top:10px;"></div>
-      <div style="padding:8px 11px 4px;">
-        <div style="font-size: 11px;color:#cbd5e1;line-height:1.7;">⚠ 本工具僅供技術分析學習，不構成投資建議。所有買賣決策請自行判斷。</div>
-      </div>
     </div>
   </aside>
 
@@ -56,7 +52,8 @@
     <div class="tab-nav">
       <button class="tab-btn active" data-tab="dashboard"    onclick="showTab('dashboard',this)">個股</button>
       <button class="tab-btn"        data-tab="report"       onclick="showTab('report',this)">AI 報告</button>
-      <button class="tab-btn"        data-tab="screener"     onclick="showTab('screener',this)">選股</button>
+      <button class="tab-btn"        data-tab="screener"     onclick="showTab('screener',this)">個股推薦</button>
+      <button class="tab-btn"        data-tab="etf-screener" onclick="showTab('etf-screener',this)">ETF推薦</button>
       <button class="tab-btn"        data-tab="etf-dividend" onclick="showTab('etf-dividend',this)">ETF股利</button>
     </div>
 
@@ -65,9 +62,14 @@
       <div id="dashboard-root"></div>
     </div>
 
-    <!-- TAB: 選股參考 -->
+    <!-- TAB: 個股推薦 -->
     <div id="tab-screener" class="tab-panel">
       <div id="screener-root"></div>
+    </div>
+
+    <!-- TAB: ETF 推薦 -->
+    <div id="tab-etf-screener" class="tab-panel">
+      <div id="etf-screener-root"></div>
     </div>
 
     <!-- TAB: ETF 股利殖利率 -->
