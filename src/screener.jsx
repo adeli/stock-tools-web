@@ -104,6 +104,144 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     );
   }
 
+  function StockBadges({ r }) {
+    const setup = r.setup;
+    const chips = r.chips;
+    if (!setup && !chips) return null;
+
+    const badges = [];
+    if (setup?.is_pullback_buy) {
+      badges.push(
+        <span key="pb" style={{
+          fontSize:10, fontWeight:700, color:'#4ade80',
+          background:'rgba(74,222,128,0.15)', border:'1px solid rgba(74,222,128,0.4)',
+          borderRadius:4, padding:'1px 5px',
+        }}>
+          🎯 {setup.pullback_line || 'SEMA'}買點
+        </span>
+      );
+    }
+    if (setup?.is_extended) {
+      badges.push(
+        <span key="ext" title={`距50MA季線乖離率 +${setup.bias_ma50}%`} style={{
+          fontSize:10, fontWeight:700, color:'#fb923c',
+          background:'rgba(251,146,60,0.15)', border:'1px solid rgba(251,146,60,0.4)',
+          borderRadius:4, padding:'1px 5px',
+        }}>
+          🚨 乖離過大
+        </span>
+      );
+    }
+    if (chips?.it_consec_days >= 2) {
+      badges.push(
+        <span key="chips" title={`投信近5日買賣超 ${chips.it_net_lots_5d} 張`} style={{
+          fontSize:10, fontWeight:700, color:'#facc15',
+          background:'rgba(250,204,21,0.15)', border:'1px solid rgba(250,204,21,0.4)',
+          borderRadius:4, padding:'1px 5px',
+        }}>
+          ⭐ 投信連{chips.it_consec_days}買
+        </span>
+      );
+    }
+    if (setup?.trend_template) {
+      badges.push(
+        <span key="trend" title="股價 > 50MA > 200MA 且均線多頭排列" style={{
+          fontSize:10, fontWeight:700, color:'#38bdf8',
+          background:'rgba(56,189,248,0.12)', border:'1px solid rgba(56,189,248,0.35)',
+          borderRadius:4, padding:'1px 5px',
+        }}>
+          🌊 多頭
+        </span>
+      );
+    }
+
+    if (badges.length === 0) return null;
+    return <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginTop:4 }}>{badges}</div>;
+  }
+
+  function MarketRegimeBanner({ regime }) {
+    if (!regime) return null;
+
+    const STATUS_CFG = {
+      BULL: {
+        border: 'rgba(74, 222, 128, 0.4)',
+        bg: 'rgba(74, 222, 128, 0.08)',
+        badgeColor: '#4ade80',
+        icon: '🟢',
+      },
+      CAUTION: {
+        border: 'rgba(251, 191, 36, 0.4)',
+        bg: 'rgba(251, 191, 36, 0.08)',
+        badgeColor: '#fbbf24',
+        icon: '🟡',
+      },
+      DEFENSIVE: {
+        border: 'rgba(249, 115, 22, 0.4)',
+        bg: 'rgba(249, 115, 22, 0.08)',
+        badgeColor: '#f97316',
+        icon: '🟠',
+      },
+      BEAR: {
+        border: 'rgba(248, 113, 113, 0.4)',
+        bg: 'rgba(248, 113, 113, 0.08)',
+        badgeColor: '#f87171',
+        icon: '🔴',
+      },
+    };
+
+    const cfg = STATUS_CFG[regime.status] || STATUS_CFG.CAUTION;
+    const d50 = regime.diff_ma50_pct;
+
+    return (
+      <div style={{
+        marginBottom: 16,
+        padding: '12px 16px',
+        borderRadius: 10,
+        background: cfg.bg,
+        border: `1px solid ${cfg.border}`,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16 }}>{cfg.icon}</span>
+            <span style={{ fontSize: 15, fontWeight: 800, color: '#f1f5f9' }}>
+              {regime.index_name}
+            </span>
+            <span style={{ fontSize: 14, fontFamily: 'monospace', color: '#cbd5e1' }}>
+              ${regime.price?.toLocaleString()}
+            </span>
+            {d50 != null && (
+              <span style={{
+                fontSize: 12,
+                fontFamily: 'monospace',
+                color: d50 >= 0 ? '#4ade80' : '#f87171',
+                background: 'rgba(0,0,0,0.25)',
+                padding: '2px 6px',
+                borderRadius: 4,
+              }}>
+                季線偏離 {d50 > 0 ? '+' : ''}{d50}%
+              </span>
+            )}
+          </div>
+          <div style={{
+            fontSize: 12,
+            fontWeight: 700,
+            color: cfg.badgeColor,
+            border: `1px solid ${cfg.border}`,
+            borderRadius: 6,
+            padding: '3px 8px',
+            background: 'rgba(0,0,0,0.3)',
+          }}>
+            {regime.level} ({regime.status})
+          </div>
+        </div>
+        <div style={{ fontSize: 13, color: '#e2e8f0', marginTop: 8, lineHeight: 1.45, opacity: 0.95 }}>
+          {regime.advice}
+        </div>
+      </div>
+    );
+  }
+
   // ── 展開明細（就地展開，資料全來自 result row 內的 sema_data / dividend）───────
   const WAVE_LABEL = { B:'量能正常', C:'量縮打底', D:'量縮後轉強' };
 
@@ -200,6 +338,25 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
           <Stat label="收盤位置" value={sd.closePos != null ? `當日 ${Math.round(sd.closePos * 100)}%` : '—'} />
           <Stat label="60日新高" value={sd.isNewHigh60 ? '是' : '否'}
                 color={sd.isNewHigh60 ? '#4ade80' : C.mid} />
+          {r.setup?.bias_ma50 != null && (
+            <Stat label="50MA乖離" value={`${r.setup.bias_ma50 > 0 ? '+' : ''}${r.setup.bias_ma50}%`}
+                  color={r.setup.is_extended ? '#fb923c' : C.mid} />
+          )}
+          {r.setup?.dist_support_pct != null && (
+            <Stat label="支撐線距離" value={`${r.setup.pullback_line || 'SEMA'} (${r.setup.dist_support_pct}%)`}
+                  color={r.setup.is_pullback_buy ? '#4ade80' : C.mid} />
+          )}
+          {r.chips?.it_consec_days > 0 && (
+            <Stat label="投信動態" value={`連買 ${r.chips.it_consec_days} 日 (5日 ${r.chips.it_net_lots_5d} 張)`}
+                  color="#facc15" />
+          )}
+          {r.setup?.avg_turnover ? (
+            <Stat label="日均成交額" value={
+              r.setup.avg_turnover >= 1e8 ? `${(r.setup.avg_turnover / 1e8).toFixed(1)} 億` :
+              r.setup.avg_turnover >= 1e6 ? `${(r.setup.avg_turnover / 1e6).toFixed(1)} 百萬` :
+              `${r.setup.avg_turnover.toLocaleString()}`
+            } />
+          ) : null}
           {sd.prevHigh && (
             <Stat label="上方套牢區" value={`${sd.prevHigh.price}（${num(sd.prevHigh.lots)}張）`} />
           )}
@@ -277,6 +434,7 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
             <Chevron open={expanded} />{r.code}{isEtf && <EtfBadge />}
           </div>
           <div style={{ fontSize:13, color:C.mid, marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.name}</div>
+          <StockBadges r={r} />
         </div>
         <div style={{ textAlign:'center' }}>
           <div style={{ fontSize:20, fontWeight:900, fontFamily:'monospace', color:rsColor(r.rs_rating), lineHeight:1.1 }}>{r.rs_rating}</div>
@@ -346,6 +504,8 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
           </div>
         </div>
 
+        <StockBadges r={r} />
+
         {/* 第二行：RS + EPS + 訊號點 */}
         <div style={{ display:'flex', alignItems:'center', gap:16, marginTop:10, flexWrap:'wrap' }}>
           <div style={{ display:'flex', alignItems:'baseline', gap:4 }}>
@@ -395,9 +555,11 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
   function MarketSection({ market, data, loading, error, onView }) {
     const isMobile = useIsMobile();
     const [expanded, setExpanded] = useState(null);
+    const [filter, setFilter] = useState('all');
     const onToggle = code => setExpanded(c => (c === code ? null : code));
     const label = market === 'tw' ? '台股' : '美股';
     const results = data?.results || [];
+    const regime  = data?.market_regime;
     const scanAt  = fmtDate(data?.scanned_at);
     const hasStock = results.some(r => r.source !== 'etf');
     const hasEtf   = results.some(r => r.source === 'etf');
@@ -405,8 +567,30 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
       ...(hasStock ? SIGNAL_META_STOCK : []),
       ...(hasEtf ? SIGNAL_META_ETF.filter(m => !(hasStock && SIGNAL_META_STOCK.some(s => s.key === m.key))) : []),
     ];
+
+    const countAll = results.length;
+    const countPb = results.filter(r => r.setup?.is_pullback_buy).length;
+    const countChips = results.filter(r => (r.chips?.it_consec_days >= 3) || r.chips?.is_it_hot).length;
+    const countTrend = results.filter(r => r.setup?.trend_template).length;
+
+    const filteredResults = results.filter(r => {
+      if (filter === 'pullback') return r.setup?.is_pullback_buy;
+      if (filter === 'chips') return (r.chips?.it_consec_days >= 3) || r.chips?.is_it_hot;
+      if (filter === 'trend') return r.setup?.trend_template;
+      return true;
+    });
+
+    const filterButtons = [
+      { key: 'all', label: `全部 (${countAll})` },
+      { key: 'pullback', label: `🎯 回測買點 (${countPb})` },
+      ...(market === 'tw' ? [{ key: 'chips', label: `⭐ 投信連買 (${countChips})` }] : []),
+      { key: 'trend', label: `🌊 多頭排列 (${countTrend})` },
+    ];
+
     return (
       <div style={{ marginBottom:28 }}>
+        <MarketRegimeBanner regime={regime} />
+
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
           marginBottom:10, padding:'0 2px', flexWrap:'wrap', gap:6 }}>
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
@@ -418,6 +602,33 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
           </div>
           {scanAt && <span style={{ fontSize:12, color:C.dim, fontFamily:'monospace' }}>資料日期 {scanAt}</span>}
         </div>
+
+        {results.length > 0 && (
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
+            {filterButtons.map(btn => {
+              const active = filter === btn.key;
+              return (
+                <button
+                  key={btn.key}
+                  onClick={() => setFilter(btn.key)}
+                  style={{
+                    fontSize:12,
+                    fontWeight: active ? 700 : 500,
+                    color: active ? '#60a5fa' : C.dim,
+                    background: active ? 'rgba(96,165,250,0.15)' : 'rgba(255,255,255,0.04)',
+                    border: active ? '1px solid rgba(96,165,250,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                    borderRadius:16,
+                    padding:'4px 12px',
+                    cursor:'pointer',
+                    transition:'all 0.15s ease',
+                  }}
+                >
+                  {btn.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <div className="glass" style={{ overflow:'hidden' }}>
           {loading && (
@@ -439,7 +650,13 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
             <div style={{ padding:40, textAlign:'center', color:C.label, fontSize:14 }}>尚無資料</div>
           )}
 
-          {results.length > 0 && (
+          {!loading && !error && results.length > 0 && filteredResults.length === 0 && (
+            <div style={{ padding:40, textAlign:'center', color:C.dim, fontSize:14 }}>
+              目前無符合「{filterButtons.find(b => b.key === filter)?.label}」的股票
+            </div>
+          )}
+
+          {filteredResults.length > 0 && (
             <>
               {!isMobile && (
                 <div style={{ display:'grid', gridTemplateColumns:COLS, gap:10, padding:'9px 16px',
@@ -451,7 +668,7 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
                   ))}
                 </div>
               )}
-              {results.map((r,i) => (
+              {filteredResults.map((r,i) => (
                 <ResultRow key={r.code} r={r} rank={i+1} isMobile={isMobile}
                   expanded={expanded === r.code} onToggle={onToggle} onFullView={onView} />
               ))}
