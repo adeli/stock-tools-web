@@ -1,12 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { isReportCurrent } from './utils.js';
+import { isReportCurrent, getChangeColor } from './utils.js';
 import { r2, computeGaugeMessages, WaterGauge, PriceRail } from './sema.jsx';
+import { WORKER_URL as _API } from './config.js';
 
 (function () {
   const { useState, useEffect, useRef, useCallback } = React;
-
-  const _API = 'https://stock-tools.adelitwo.workers.dev';
 
   function _norm(raw) {
     const s = (raw || '').trim().toUpperCase();
@@ -65,7 +64,7 @@ import { r2, computeGaugeMessages, WaterGauge, PriceRail } from './sema.jsx';
     const msgs    = data ? computeGaugeMessages(data) : null;
     const signal  = msgs ? getSignal(data, msgs) : null;
     const chg     = data?.change ?? 0;
-    const chgColor = chg >= 0 ? '#ff5a5a' : '#33cc77';
+    const chgColor = getChangeColor(chg, sym);
     const [logoOk, setLogoOk] = useState(true);
 
     return (
@@ -308,6 +307,15 @@ import { r2, computeGaugeMessages, WaterGauge, PriceRail } from './sema.jsx';
       localStorage.removeItem('dash_watchlist');
       localStorage.removeItem('sema_watchlist');
     }, [watchlist]);
+
+    // 監聽跨頁面自選清單更新
+    useEffect(() => {
+      const handler = (e) => {
+        if (e.detail) setWatchlist(e.detail);
+      };
+      window.addEventListener('watchlistchange', handler);
+      return () => window.removeEventListener('watchlistchange', handler);
+    }, []);
 
     // 水位計寬度自適應
     useEffect(() => {

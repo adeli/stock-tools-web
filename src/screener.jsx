@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { WORKER_URL } from './app.js';
+import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } from './utils.js';
 
 // ── Screener Tab ──────────────────────────────────────────────────────────────
 
@@ -54,11 +55,6 @@ import { WORKER_URL } from './app.js';
     if (rs >= 80) return '#86efac';
     if (rs >= 70) return '#fde68a';
     return C.mid;
-  }
-  function changeColor(v) {
-    if (v > 0) return '#4ade80';
-    if (v < 0) return '#f87171';
-    return C.dim;
   }
   function epsColor(gp) {
     if (gp >= 25) return '#4ade80';
@@ -140,6 +136,44 @@ import { WORKER_URL } from './app.js';
     );
   }
 
+  function WatchlistButton({ code, name }) {
+    const norm = /^\d{4,6}[A-Z]?$/.test(code) ? code + '.TW' : code;
+    const [inList, setInList] = useState(() => {
+      const list = getWatchlist();
+      return list.some(w => (w.code || '').toUpperCase() === norm.toUpperCase());
+    });
+
+    useEffect(() => {
+      const handler = () => {
+        const list = getWatchlist();
+        setInList(list.some(w => (w.code || '').toUpperCase() === norm.toUpperCase()));
+      };
+      window.addEventListener('watchlistchange', handler);
+      return () => window.removeEventListener('watchlistchange', handler);
+    }, [norm]);
+
+    const toggle = (e) => {
+      e.stopPropagation();
+      if (inList) {
+        removeFromWatchlist(norm);
+        setInList(false);
+      } else {
+        addToWatchlist(norm, name);
+        setInList(true);
+      }
+    };
+
+    return (
+      <button onClick={toggle} style={{
+        fontSize:13, color: inList ? '#4ade80' : '#fbbf24', background:'none',
+        border: `1px solid ${inList ? 'rgba(74,222,128,0.45)' : 'rgba(251,191,36,0.45)'}`,
+        borderRadius:6, padding:'5px 12px', cursor:'pointer',
+      }}>
+        {inList ? '✓ 已在自選' : '⭐ 加入自選'}
+      </button>
+    );
+  }
+
   function RowDetail({ r, onFullView }) {
     const sd     = r.sema_data || {};
     const price  = sd.price ?? r.price;
@@ -195,13 +229,31 @@ import { WORKER_URL } from './app.js';
           </div>
         )}
 
-        <button onClick={(e) => { e.stopPropagation(); onFullView(r.code); }} style={{
-          fontSize:13, color:'#60a5fa', background:'none',
-          border:'1px solid rgba(96,165,250,0.4)', borderRadius:6,
-          padding:'5px 12px', cursor:'pointer',
-        }}>
-          完整水位計 →
-        </button>
+        <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+          <button onClick={(e) => { e.stopPropagation(); onFullView(r.code); }} style={{
+            fontSize:13, color:'#60a5fa', background:'none',
+            border:'1px solid rgba(96,165,250,0.4)', borderRadius:6,
+            padding:'5px 12px', cursor:'pointer',
+          }}>
+            📈 水位計 →
+          </button>
+
+          <WatchlistButton code={r.code} name={r.name} />
+
+          <button onClick={(e) => {
+            e.stopPropagation();
+            const dispSym = r.code.replace(/\.TW$/i, '');
+            const inputEl = document.getElementById('symbol');
+            if (inputEl) inputEl.value = dispSym;
+            if (window.showTab) window.showTab('report');
+          }} style={{
+            fontSize:13, color:'#c084fc', background:'none',
+            border:'1px solid rgba(192,132,252,0.4)', borderRadius:6,
+            padding:'5px 12px', cursor:'pointer',
+          }}>
+            🤖 AI 報告 →
+          </button>
+        </div>
       </div>
     );
   }
@@ -251,7 +303,7 @@ import { WORKER_URL } from './app.js';
         </div>
         <div style={{ textAlign:'right' }}>
           <div style={{ fontSize:15, fontWeight:700, fontFamily:'monospace', color:C.hi, lineHeight:1.2 }}>{r.price}</div>
-          <div style={{ fontSize:13, fontFamily:'monospace', marginTop:2, color:changeColor(chg) }}>
+          <div style={{ fontSize:13, fontFamily:'monospace', marginTop:2, color:getChangeColor(chg, r.code) }}>
             {chg > 0 ? '+' : ''}{chg?.toFixed(2)}%
           </div>
         </div>
@@ -288,7 +340,7 @@ import { WORKER_URL } from './app.js';
           </div>
           <div style={{ textAlign:'right', flexShrink:0 }}>
             <div style={{ fontSize:16, fontWeight:700, fontFamily:'monospace', color:C.hi }}>{r.price}</div>
-            <div style={{ fontSize:13, fontFamily:'monospace', color:changeColor(chg) }}>
+            <div style={{ fontSize:13, fontFamily:'monospace', color:getChangeColor(chg, r.code) }}>
               {chg > 0 ? '+' : ''}{chg?.toFixed(2)}%
             </div>
           </div>

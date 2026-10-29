@@ -25,6 +25,47 @@ export function isReportCurrent(reportDate, isTW) {
     if (etDow === 'Sunday')   return date === tzDateStr('America/New_York', new Date(now - 2 * 86400000));
     // Weekday: accept yesterday's report before market opens
     const etYesterday = tzDateStr('America/New_York', new Date(now - 86400000));
-    return date === etYesterday && tzTimeStr('America/New_York', now) < '16:30';
+    return date === etYesterday && tzTimeStr('America/New_York', now) < '09:30';
   }
+}
+
+export function getChangeColor(v, code = '') {
+  if (v == null || v === 0) return '#cbd5e1';
+  const isTw = /\.TW$/i.test(code) || /^\d{4,6}[A-Z]?$/i.test(code);
+  if (isTw) {
+    return v > 0 ? '#ff5a5a' : '#33cc77'; // 台股：紅漲綠跌
+  }
+  return v > 0 ? '#4ade80' : '#f87171';   // 美股：綠漲紅跌
+}
+
+export function getWatchlist() {
+  try {
+    return JSON.parse(localStorage.getItem('watchlist') || '[]');
+  } catch {
+    return [];
+  }
+}
+
+export function addToWatchlist(code, name = '') {
+  const raw = (code || '').trim().toUpperCase();
+  const norm = /^\d{4,6}[A-Z]?$/.test(raw) ? raw + '.TW' : raw;
+  if (!norm) return false;
+  const list = getWatchlist();
+  if (list.some(w => (w.code || '').toUpperCase() === norm)) {
+    return false;
+  }
+  const next = [...list, { code: norm, name: name || norm }];
+  localStorage.setItem('watchlist', JSON.stringify(next));
+  window.dispatchEvent(new CustomEvent('watchlistchange', { detail: next }));
+  return true;
+}
+
+export function removeFromWatchlist(code) {
+  const raw = (code || '').trim().toUpperCase();
+  const norm = /^\d{4,6}[A-Z]?$/.test(raw) ? raw + '.TW' : raw;
+  const list = getWatchlist();
+  const next = list.filter(w => (w.code || '').toUpperCase() !== norm);
+  localStorage.setItem('watchlist', JSON.stringify(next));
+  window.dispatchEvent(new CustomEvent('watchlistchange', { detail: next }));
+  return true;
 }

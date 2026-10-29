@@ -35,7 +35,8 @@ function showTab(name, btn) {
 
 // ── AI Report + History ──
 
-export const WORKER_URL = 'https://stock-tools.adelitwo.workers.dev';
+import { WORKER_URL } from './config.js';
+export { WORKER_URL };
 
 window.fetchSemaBatch = async function(symbols) {
   const CHUNK = 10;
