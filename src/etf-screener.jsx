@@ -517,6 +517,9 @@ import {
       });
     }, [rawEtfPool, liveData]);
 
+    // 月月配組合標的清單
+    const COMBO_CODES = useMemo(() => new Set(['0056', '00878', '00919', 'SCHD', 'JEPI', 'JEPQ']), []);
+
     // 依類別與市場過濾
     const filteredEtfs = useMemo(() => {
       let list = fullEtfs;
@@ -524,7 +527,9 @@ import {
       if (market === 'tw') list = list.filter(x => x.isTw);
       if (market === 'us') list = list.filter(x => !x.isTw);
 
-      if (category !== 'all' && category !== 'combo') {
+      if (category === 'combo') {
+        list = list.filter(x => COMBO_CODES.has(x.code));
+      } else if (category !== 'all') {
         list = list.filter(x => x.category === category);
       }
 
@@ -544,30 +549,50 @@ import {
         if (Math.abs(yB - yA) > 0.001) return yB - yA;
         return (a.code || '').localeCompare(b.code || '');
       });
-    }, [fullEtfs, market, category]);
+    }, [fullEtfs, market, category, COMBO_CODES]);
 
-    // 統計數量
-    const countAll      = fullEtfs.length;
-    const countDividend = fullEtfs.filter(x => x.category === 'dividend').length;
-    const countGrowth   = fullEtfs.filter(x => x.category === 'growth').length;
-    const countBond     = fullEtfs.filter(x => x.category === 'bond').length;
+    // 依當前市場計算類別計數（讓類別按鈕數量隨市場切換動態連動）
+    const marketFilteredPool = useMemo(() => {
+      if (market === 'tw') return fullEtfs.filter(x => x.isTw);
+      if (market === 'us') return fullEtfs.filter(x => !x.isTw);
+      return fullEtfs;
+    }, [fullEtfs, market]);
 
-    const countTw = fullEtfs.filter(x => x.isTw).length;
-    const countUs = fullEtfs.filter(x => !x.isTw).length;
+    const countAll      = marketFilteredPool.length;
+    const countDividend = marketFilteredPool.filter(x => x.category === 'dividend').length;
+    const countGrowth   = marketFilteredPool.filter(x => x.category === 'growth').length;
+    const countBond     = marketFilteredPool.filter(x => x.category === 'bond').length;
+    const countCombo    = marketFilteredPool.filter(x => COMBO_CODES.has(x.code)).length;
 
-    // 存股類別按鈕
+    // 依當前類別計算市場計數（讓市場按鈕數量隨類別切換動態連動）
+    const categoryFilteredPool = useMemo(() => {
+      if (category === 'combo') {
+        return fullEtfs.filter(x => COMBO_CODES.has(x.code));
+      }
+      if (category !== 'all') {
+        return fullEtfs.filter(x => x.category === category);
+      }
+      return fullEtfs;
+    }, [fullEtfs, category, COMBO_CODES]);
+
+    const countMktAll = categoryFilteredPool.length;
+    const countMktTw  = categoryFilteredPool.filter(x => x.isTw).length;
+    const countMktUs  = categoryFilteredPool.filter(x => !x.isTw).length;
+
+    // 存股類別按鈕 (動態反映當前市場下的各類別數量)
     const CATEGORY_BUTTONS = [
       { key: 'all',      icon: '🌐', title: '全部 ETF', count: countAll, desc: '全市場核心資產' },
       { key: 'dividend', icon: '💰', title: '高息現金流', count: countDividend, desc: '7~10%+ 月季高配息' },
       { key: 'growth',   icon: '🚀', title: '市值成長型', count: countGrowth, desc: '長線大盤資產翻倍' },
       { key: 'bond',     icon: '🛡️', title: '債券防禦型', count: countBond, desc: '鎖定息率 · 股災防禦' },
-      { key: 'combo',    icon: '✨', title: '月月領息指南', count: '推薦', desc: '自組1~12月現金流' },
+      { key: 'combo',    icon: '✨', title: '月月領息指南', count: countCombo, desc: '自組1~12月現金流' },
     ];
 
+    // 市場篩選按鈕 (動態反映當前類別下的各市場數量)
     const MARKET_BUTTONS = [
-      { key: 'all', label: `全部 (${countAll})` },
-      { key: 'tw',  label: `🇹🇼 台股 (${countTw})` },
-      { key: 'us',  label: `🇺🇸 美股 (${countUs})` },
+      { key: 'all', label: `全部 (${countMktAll})` },
+      { key: 'tw',  label: `🇹🇼 台股 (${countMktTw})` },
+      { key: 'us',  label: `🇺🇸 美股 (${countMktUs})` },
     ];
 
     return (
@@ -665,7 +690,7 @@ import {
         </div>
 
         {/* 月月領息指南特別區塊 */}
-        {category === 'combo' ? (
+        {category === 'combo' && (
           <div
             style={{
               background: 'rgba(30, 41, 59, 0.7)',
@@ -682,117 +707,161 @@ import {
               </h3>
             </div>
             <p style={{ fontSize: 13, color: C.dim, lineHeight: 1.6, marginBottom: 14 }}>
-              許多存股投資人喜歡每月都有固定被動現金流入帳。透過挑選不同月份除息的優質「季配」或「月配」ETF，即可達成 1~12 月完全無死角的現金流發薪日！
+              許多存股投資人喜歡每月都有固定被動現金流入帳。透過挑選不同月份除息的優質「季配」或「月配」ETF，即可達成 1~12 月完全無死角的現金流發薪日！下方已為您即時連線列出該組合所有核心標的之位階與股息率。
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 12 }}>
-              {/* 組合一 */}
-              <div
-                style={{
-                  background: 'rgba(15, 23, 42, 0.6)',
-                  border: '1px solid rgba(74, 222, 128, 0.25)',
-                  borderRadius: 10,
-                  padding: '12px 14px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 13.5, fontWeight: 800, color: '#4ade80' }}>
-                    🏆 台股經典「黃金三角」組合
-                  </span>
-                  <span style={{ fontSize: 11, color: '#86efac', background: 'rgba(74, 222, 128, 0.1)', padding: '1px 6px', borderRadius: 4 }}>
-                    預估年化 ~8.7%
-                  </span>
+              {/* 組合一：台股經典 */}
+              {(market === 'all' || market === 'tw') && (
+                <div
+                  style={{
+                    background: 'rgba(15, 23, 42, 0.6)',
+                    border: '1px solid rgba(74, 222, 128, 0.25)',
+                    borderRadius: 10,
+                    padding: '12px 14px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 800, color: '#4ade80' }}>
+                      🏆 台股經典「黃金三角」組合
+                    </span>
+                    <span style={{ fontSize: 11, color: '#86efac', background: 'rgba(74, 222, 128, 0.1)', padding: '1px 6px', borderRadius: 4 }}>
+                      預估年化 ~8.7%
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: C.mid, lineHeight: 1.5 }}>
+                    • <b>1, 4, 7, 10月</b>：0056 元大高股息 (8.7%)<br />
+                    • <b>2, 5, 8, 11月</b>：00878 國泰永續高股息 (7.1%)<br />
+                    • <b>3, 6, 9, 12月</b>：00919 群益精選高息 (10.4%)
+                  </div>
+                  <div style={{ fontSize: 11, color: C.dim, marginTop: 6 }}>
+                    優勢：百萬股民最信賴組合，平攤單一投信選股風險，歷年填息紀錄穩健。
+                  </div>
                 </div>
-                <div style={{ fontSize: 12, color: C.mid, lineHeight: 1.5 }}>
-                  • <b>1, 4, 7, 10月</b>：0056 元大高股息 (8.7%)<br />
-                  • <b>2, 5, 8, 11月</b>：00878 國泰永續高股息 (7.1%)<br />
-                  • <b>3, 6, 9, 12月</b>：00919 群益精選高息 (10.4%)
-                </div>
-                <div style={{ fontSize: 11, color: C.dim, marginTop: 6 }}>
-                  優勢：百萬股民最信賴組合，平攤單一投信選股風險，歷年填息紀錄穩健。
-                </div>
-              </div>
+              )}
 
-              {/* 組合二 */}
-              <div
-                style={{
-                  background: 'rgba(15, 23, 42, 0.6)',
-                  border: '1px solid rgba(56, 189, 248, 0.25)',
-                  borderRadius: 10,
-                  padding: '12px 14px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 13.5, fontWeight: 800, color: '#38bdf8' }}>
-                    🇺🇸 美股「息利雙收」核心組合
-                  </span>
-                  <span style={{ fontSize: 11, color: '#7dd3fc', background: 'rgba(56, 189, 248, 0.1)', padding: '1px 6px', borderRadius: 4 }}>
-                    預估年化 ~7.2%
-                  </span>
+              {/* 組合二：美股息利雙收 */}
+              {(market === 'all' || market === 'us') && (
+                <div
+                  style={{
+                    background: 'rgba(15, 23, 42, 0.6)',
+                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                    borderRadius: 10,
+                    padding: '12px 14px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 800, color: '#38bdf8' }}>
+                      🇺🇸 美股「息利雙收」核心組合
+                    </span>
+                    <span style={{ fontSize: 11, color: '#7dd3fc', background: 'rgba(56, 189, 248, 0.1)', padding: '1px 6px', borderRadius: 4 }}>
+                      預估年化 ~7.2%
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: C.mid, lineHeight: 1.5 }}>
+                    • <b>核心成長基石</b>：SCHD (季配 3/6/9/12月)<br />
+                    • <b>月配高額現金</b>：JEPI (標普500掩護買權 · 月配)<br />
+                    • <b>科技高息動能</b>：JEPQ (納指100掩護買權 · 月配)
+                  </div>
+                  <div style={{ fontSize: 11, color: C.dim, marginTop: 6 }}>
+                    優勢：兼顧美元資產配置，既有 SCHD 股息成長體質，又有 JEPI/JEPQ 高額月配補貼。
+                  </div>
                 </div>
-                <div style={{ fontSize: 12, color: C.mid, lineHeight: 1.5 }}>
-                  • <b>核心成長基石</b>：SCHD (季配 3/6/9/12月)<br />
-                  • <b>月配高額現金</b>：JEPI (標普500掩護買權 · 月配)<br />
-                  • <b>科技高息動能</b>：JEPQ (納指100掩護買權 · 月配)
-                </div>
-                <div style={{ fontSize: 11, color: C.dim, marginTop: 6 }}>
-                  優勢：兼顧美元資產配置，既有 SCHD 股息成長體質，又有 JEPI/JEPQ 高額月配補貼。
-                </div>
-              </div>
+              )}
             </div>
           </div>
-        ) : null}
+        )}
 
         {/* 市場切換膠囊 (全部 / 台股 / 美股) */}
-        {category !== 'combo' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12, color: C.dim, marginRight: 4 }}>市場篩選:</span>
-            {MARKET_BUTTONS.map(btn => (
-              <button
-                key={btn.key}
-                onClick={() => setMarket(btn.key)}
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: market === btn.key ? '#ffffff' : C.dim,
-                  background: market === btn.key ? 'rgba(96, 165, 250, 0.25)' : 'rgba(255, 255, 255, 0.04)',
-                  border: `1px solid ${market === btn.key ? 'rgba(96, 165, 250, 0.45)' : 'rgba(255, 255, 255, 0.08)'}`,
-                  borderRadius: 6,
-                  padding: '4px 10px',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {btn.label}
-              </button>
-            ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, color: C.dim, marginRight: 4 }}>市場篩選:</span>
+          {MARKET_BUTTONS.map(btn => (
+            <button
+              key={btn.key}
+              onClick={() => setMarket(btn.key)}
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: market === btn.key ? '#ffffff' : C.dim,
+                background: market === btn.key ? 'rgba(96, 165, 250, 0.25)' : 'rgba(255, 255, 255, 0.04)',
+                border: `1px solid ${market === btn.key ? 'rgba(96, 165, 250, 0.45)' : 'rgba(255, 255, 255, 0.08)'}`,
+                borderRadius: 6,
+                padding: '4px 10px',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
+
+        {/* 結果數量與狀態提示列 */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            margin: '10px 0 12px',
+            padding: '6px 4px',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+            flexWrap: 'wrap',
+            gap: 8,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: C.dim }}>
+            <span>符合條件：</span>
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 800,
+                color: '#38bdf8',
+                background: 'rgba(56, 189, 248, 0.12)',
+                padding: '2px 8px',
+                borderRadius: 12,
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                fontFamily: 'monospace',
+              }}
+            >
+              {filteredEtfs.length} 檔 ETF
+            </span>
+            <span style={{ fontSize: 11.5, color: C.mid }}>
+              ({market === 'all' ? '全部市場' : market === 'tw' ? '🇹🇼 台股' : '🇺🇸 美股'} · {
+                category === 'all' ? '全部核心' :
+                category === 'dividend' ? '高息現金流' :
+                category === 'growth' ? '市值成長型' :
+                category === 'bond' ? '債券防禦型' : '月月領息指南'
+              })
+            </span>
           </div>
-        )}
+
+          <div style={{ fontSize: 11, color: C.dim }}>
+            {category === 'growth' ? '⚡ 依 RS 相對強度排序' : '💰 優先顯示便宜加碼位階 · 依殖利率排序'}
+          </div>
+        </div>
 
         {/* ETF 清單 */}
-        {category !== 'combo' && (
-          <div>
-            {filteredEtfs.length === 0 ? (
-              <div
-                style={{
-                  textAlign: 'center',
-                  padding: '40px 20px',
-                  background: C.cardBg,
-                  borderRadius: 14,
-                  border: `1px dashed ${C.border}`,
-                  color: C.dim,
-                  fontSize: 14,
-                }}
-              >
-                此條件下暫無符合之 ETF 標的
-              </div>
-            ) : (
-              filteredEtfs.map(item => (
-                <EtfCard key={item.code} item={item} />
-              ))
-            )}
-          </div>
-        )}
+        <div>
+          {filteredEtfs.length === 0 ? (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '40px 20px',
+                background: C.cardBg,
+                borderRadius: 14,
+                border: `1px dashed ${C.border}`,
+                color: C.dim,
+                fontSize: 14,
+              }}
+            >
+              此條件下暫無符合之 ETF 標的
+            </div>
+          ) : (
+            filteredEtfs.map(item => (
+              <EtfCard key={item.code} item={item} />
+            ))
+          )}
+        </div>
       </div>
     );
   }
