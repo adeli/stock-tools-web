@@ -552,13 +552,65 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     );
   }
 
+  function normalizeResult(r) {
+    if (!r) return r;
+    const sd = r.sema_data || {};
+    const price = r.price || sd.price || 0;
+    const allSemas = sd.allSemas || [];
+
+    // 若後端已有 setup，直接沿用
+    let setup = r.setup;
+    if (!setup) {
+      const supports = allSemas.filter(s => s.value != null && s.value < price);
+      const closest = supports.length > 0
+        ? supports.reduce((max, s) => (s.value > max.value ? s : max), supports[0])
+        : null;
+      const dist = closest ? Number(((price - closest.value) / price * 100).toFixed(2)) : null;
+      const pLine = closest?.label || null;
+
+      const s5 = allSemas.find(s => s.label === 'SEMA5');
+      const s8 = allSemas.find(s => s.label === 'SEMA8');
+      const trend = Boolean(s5 && s8 && price > s5.value && s5.value > s8.value);
+      const biasMa50 = s5 ? Number(((price - s5.value) / s5.value * 100).toFixed(1)) : 0;
+      const isExtended = biasMa50 >= 25.0;
+
+      const isPb = Boolean(
+        (r.rs_rating >= 80) &&
+        !isExtended &&
+        ['SEMA1', 'SEMA2', 'SEMA3', 'SEMA4', 'SEMA5'].includes(pLine) &&
+        dist != null && dist <= 3.5 &&
+        (r.changePct == null || r.changePct >= -4.0)
+      );
+
+      setup = {
+        is_pullback_buy:  isPb,
+        pullback_line:    pLine,
+        dist_support_pct: dist,
+        is_extended:      isExtended,
+        bias_ma50:        biasMa50,
+        trend_template:   trend,
+        avg_turnover:     0,
+      };
+    }
+
+    const chips = r.chips || {
+      it_consec_days: 0,
+      it_net_lots_5d: 0,
+      it_latest_lots: 0,
+      is_it_hot: false,
+    };
+
+    return { ...r, setup, chips };
+  }
+
   function MarketSection({ market, data, loading, error, onView }) {
     const isMobile = useIsMobile();
     const [expanded, setExpanded] = useState(null);
     const [filter, setFilter] = useState('all');
     const onToggle = code => setExpanded(c => (c === code ? null : code));
     const label = market === 'tw' ? '台股' : '美股';
-    const results = data?.results || [];
+    const rawResults = data?.results || [];
+    const results = rawResults.map(normalizeResult);
     const regime  = data?.market_regime;
     const scanAt  = fmtDate(data?.scanned_at);
     const hasStock = results.some(r => r.source !== 'etf');
