@@ -1364,23 +1364,104 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     );
   }
 
+  const CORE_US_ETFS_DEF = [
+    { code: 'TQQQ', name: 'ProShares 納指3倍做多', rs_rating: 85 },
+    { code: 'SOXL', name: 'Direxion 半導體3倍做多', rs_rating: 99 },
+    { code: 'QLD',  name: 'ProShares 納指2倍做多', rs_rating: 64 },
+    { code: 'SSO',  name: 'ProShares 標普2倍做多', rs_rating: 57 },
+    { code: 'UPRO', name: 'ProShares 標普3倍做多', rs_rating: 71 },
+    { code: 'NVDL', name: 'GraniteShares 輝達2倍做多', rs_rating: 65 },
+    { code: 'SMH',  name: 'VanEck 半導體 ETF', rs_rating: 92 },
+    { code: 'QQQ',  name: 'Invesco 納斯達克100 ETF', rs_rating: 50 },
+    { code: 'SCHD', name: 'Schwab 美國股息股票 ETF', rs_rating: 78, dividend: { yield_pct: 3.5, freq: '季配' } },
+    { code: 'JEPI', name: 'JPMorgan 股票溢價收益 ETF', rs_rating: 45, dividend: { yield_pct: 8.2, freq: '月配' } },
+    { code: 'JEPQ', name: 'JPMorgan 納斯達克股票溢價 ETF', rs_rating: 55, dividend: { yield_pct: 9.5, freq: '月配' } },
+    { code: 'VYM',  name: 'Vanguard 高股利收益 ETF', rs_rating: 40, dividend: { yield_pct: 3.0, freq: '季配' } },
+    { code: 'DGRO', name: 'iShares 核心股息成長 ETF', rs_rating: 48, dividend: { yield_pct: 2.4, freq: '季配' } },
+    { code: 'VOO',  name: 'Vanguard 標普500 ETF', rs_rating: 50, dividend: { yield_pct: 1.4, freq: '季配' } },
+  ];
+
+  const CORE_TW_ETFS_DEF = [
+    { code: '0050',   name: '元大台灣50', rs_rating: 50, dividend: { yield_pct: 1.5, freq: '半年配' } },
+    { code: '00631L', name: '元大台灣50正2', rs_rating: 99 },
+    { code: '00670L', name: '富邦NASDAQ正2', rs_rating: 60 },
+    { code: '00878',  name: '國泰永續高股息', rs_rating: 71, dividend: { yield_pct: 7.1, freq: '季配' } },
+    { code: '0056',   name: '元大高股息', rs_rating: 85, dividend: { yield_pct: 8.7, freq: '季配' } },
+    { code: '00919',  name: '群益台灣精選高息', rs_rating: 65, dividend: { yield_pct: 10.4, freq: '季配' } },
+    { code: '00929',  name: '復華台灣科技優息', rs_rating: 45, dividend: { yield_pct: 8.9, freq: '月配' } },
+  ];
+
   function EtfStrategySection({ mode, tw, us, onView }) {
     const isMobile = useIsMobile();
     const [expanded, setExpanded] = useState(null);
     const [marketFilter, setMarketFilter] = useState('all');
     const onToggle = code => setExpanded(c => (c === code ? null : code));
 
-    const loading = tw.loading || us.loading;
+    const [liveEtfs, setLiveEtfs] = useState({});
+    const [liveLoading, setLiveLoading] = useState(false);
+
+    useEffect(() => {
+      const currentUsCodes = (us.data?.results || []).map(r => r.code);
+      const currentTwCodes = (tw.data?.results || []).map(r => r.code);
+
+      const missingUs = CORE_US_ETFS_DEF.filter(x => !currentUsCodes.includes(x.code)).map(x => x.code);
+      const missingTw = CORE_TW_ETFS_DEF.filter(x => !currentTwCodes.includes(x.code)).map(x => `${x.code}.TW`);
+      const needed = [...missingUs, ...missingTw];
+
+      if (needed.length > 0 && Object.keys(liveEtfs).length === 0 && !liveLoading) {
+        setLiveLoading(true);
+        const CHUNK = 10;
+        const chunks = [];
+        for (let i = 0; i < needed.length; i += CHUNK) chunks.push(needed.slice(i, i + CHUNK));
+
+        Promise.all(
+          chunks.map(chunk =>
+            fetch(`${WORKER_URL}/sema/batch?symbols=${chunk.map(encodeURIComponent).join(',')}`)
+              .then(r => r.json())
+              .catch(() => ({}))
+          )
+        ).then(resList => {
+          const merged = Object.assign({}, ...resList);
+          setLiveEtfs(merged);
+          setLiveLoading(false);
+        }).catch(() => setLiveLoading(false));
+      }
+    }, [us.data, tw.data]);
+
+    const loading = (tw.loading || us.loading) && Object.keys(liveEtfs).length === 0;
     const error   = tw.error || us.error;
     const twRegime = tw.data?.market_regime;
     const usRegime = us.data?.market_regime;
 
-    const twEtfs = (tw.data?.results || [])
+    const allTwResults = [...(tw.data?.results || [])];
+    const allUsResults = [...(us.data?.results || [])];
+
+    Object.entries(liveEtfs).forEach(([sym, sema]) => {
+      if (!sema || !sema.price) return;
+      const isTw = sym.endsWith('.TW');
+      const code = isTw ? sym.replace(/\.TW$/i, '') : sym;
+      const targetList = isTw ? allTwResults : allUsResults;
+      if (!targetList.some(r => r.code === code)) {
+        const def = (isTw ? CORE_TW_ETFS_DEF : CORE_US_ETFS_DEF).find(x => x.code === code) || { code, name: code, rs_rating: 60 };
+        targetList.push({
+          code: def.code,
+          name: def.name,
+          source: 'etf',
+          price: sema.price,
+          changePct: sema.changePct,
+          rs_rating: def.rs_rating,
+          dividend: def.dividend || null,
+          sema_data: sema,
+        });
+      }
+    });
+
+    const twEtfs = allTwResults
       .filter(r => r.source === 'etf' || /^(00\d{2,4}[LA]?)$/.test(r.code))
       .map(r => evalEtf(normalizeResult(r, twRegime), mode));
 
-    const usKnown = ['TQQQ','SOXL','QLD','SSO','UPRO','NVDL','SMH','QQQ','SCHD','JEPI','JEPQ','VYM','DGRO','VOO'];
-    const usEtfs = (us.data?.results || [])
+    const usKnown = CORE_US_ETFS_DEF.map(x => x.code);
+    const usEtfs = allUsResults
       .filter(r => r.source === 'etf' || usKnown.includes(r.code))
       .map(r => evalEtf(normalizeResult(r, usRegime), mode));
 
