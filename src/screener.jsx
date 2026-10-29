@@ -67,6 +67,13 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     if (y >= 2) return '#fde68a';
     return C.mid;
   }
+  function freqColor(freq) {
+    if (freq === '月配')   return '#93c5fd';
+    if (freq === '雙月配') return '#7dd3fc';
+    if (freq === '季配')   return '#86efac';
+    if (freq === '半年配') return '#fde68a';
+    return C.dim;
+  }
   const FREQ_SHORT = { '月配':'月', '雙月配':'雙月', '季配':'季', '半年配':'半年', '年配':'年' };
   function fmtDate(iso) {
     if (!iso) return null;
@@ -747,6 +754,469 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     );
   }
 
+  const COLS_SHORT = '28px minmax(0,1.2fr) 48px 80px 105px 95px 95px 115px';
+  const COLS_LONG  = '28px minmax(0,1.2fr) 48px 80px 70px 85px 105px 125px';
+
+  function EtfMarketBadge({ isTw }) {
+    return (
+      <span style={{
+        fontSize:10, fontWeight:700,
+        color: isTw ? '#38bdf8' : '#c084fc',
+        background: isTw ? 'rgba(56,189,248,0.12)' : 'rgba(192,132,252,0.12)',
+        border: `1px solid ${isTw ? 'rgba(56,189,248,0.35)' : 'rgba(192,132,252,0.35)'}`,
+        borderRadius:4, padding:'1px 4px', verticalAlign:'middle', marginLeft:6,
+      }}>
+        {isTw ? '台股' : '美股'}
+      </span>
+    );
+  }
+
+  function evalEtf(r, mode) {
+    const isTw = /^\d{4,6}[A-Z]?$/.test(r.code);
+    const p = r.price || r.sema_data?.price || 0;
+    const sd = r.sema_data || {};
+    const allSemas = sd.allSemas || [];
+
+    const supports = allSemas.filter(s => s.value != null && s.value < p);
+    const closest = supports.length > 0
+      ? supports.reduce((max, s) => (s.value > max.value ? s : max), supports[0])
+      : null;
+    const dist = closest ? Number(((p - closest.value) / p * 100).toFixed(1)) : (r.setup?.dist_support_pct ?? 999.0);
+    const line = closest?.label || r.setup?.pullback_line || 'SEMA1';
+
+    const s8 = allSemas.find(s => s.label === 'SEMA8');
+    const ma200_dist = s8 ? Number(((p - s8.value) / s8.value * 100).toFixed(1)) : null;
+
+    if (mode === 'short') {
+      const targetPrice = Number((p * 1.035).toFixed(p < 50 ? 2 : 1));
+      const stopPrice = Number((p * 0.985).toFixed(p < 50 ? 2 : 1));
+      let status = { text: '⏸ 離支撐過遠', color: '#94a3b8', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.1)', score: 3 };
+      if (dist <= 2.5 && (r.changePct == null || r.changePct >= -3.5)) {
+        status = { text: '🎯 觸底回測點', color: '#4ade80', bg: 'rgba(74,222,128,0.15)', border: 'rgba(74,222,128,0.4)', score: 1 };
+      } else if (dist <= 5.0) {
+        status = { text: '⚡ 蓄勢觀察', color: '#60a5fa', bg: 'rgba(96,165,250,0.15)', border: 'rgba(96,165,250,0.4)', score: 2 };
+      }
+      return {
+        ...r,
+        isTw,
+        dist,
+        line,
+        targetPrice,
+        stopPrice,
+        status,
+      };
+    } else {
+      const d = r.dividend;
+      const freq = d?.freq || (['JEPI','JEPQ'].includes(r.code) ? '月配' : '季配');
+      const yieldPct = d?.yield_pct ?? (
+        r.code === 'SCHD' ? 3.5 :
+        r.code === 'JEPI' ? 8.2 :
+        r.code === 'JEPQ' ? 9.5 :
+        r.code === 'VYM'  ? 3.0 :
+        r.code === 'VOO'  ? 1.4 : null
+      );
+
+      let status = { text: '✓ 定期定額 (合理)', color: '#38bdf8', bg: 'rgba(56,189,248,0.15)', border: 'rgba(56,189,248,0.4)', score: 2 };
+      if (s8 && p < s8.value) {
+        status = { text: '⚠️ 破年線觀望', color: '#f87171', bg: 'rgba(248,113,113,0.15)', border: 'rgba(248,113,113,0.4)', score: 4 };
+      } else if (dist <= 2.0 || (r.setup?.bias_ma50 != null && r.setup.bias_ma50 < 3.0)) {
+        status = { text: '⭐ 便宜加碼點', color: '#4ade80', bg: 'rgba(74,222,128,0.15)', border: 'rgba(74,222,128,0.4)', score: 1 };
+      } else if (r.setup?.is_extended) {
+        status = { text: '⏸ 偏高暫停加碼', color: '#fb923c', bg: 'rgba(251,146,60,0.15)', border: 'rgba(251,146,60,0.4)', score: 3 };
+      }
+
+      return {
+        ...r,
+        isTw,
+        dist,
+        line,
+        freq,
+        yieldPct,
+        ma200_dist,
+        status,
+      };
+    }
+  }
+
+  function EtfShortDesktopRow({ r, rank, onClick, expanded }) {
+    const chg = r.changePct;
+    return (
+      <div onClick={onClick} className="glass-hover" style={{
+        display:'grid', gridTemplateColumns:COLS_SHORT, alignItems:'center',
+        gap:10, padding:'12px 16px',
+        borderBottom:'1px solid rgba(255,255,255,0.06)', cursor:'pointer',
+        background: expanded ? 'rgba(96,165,250,0.08)' : undefined,
+      }}>
+        <div style={{ fontSize:13, color:C.dim, fontFamily:'monospace', textAlign:'right' }}>{rank}</div>
+        <div style={{ minWidth:0 }}>
+          <div style={{ fontSize:16, fontWeight:800, color:C.hi, lineHeight:1.2, display:'flex', alignItems:'center', gap:6 }}>
+            <Chevron open={expanded} />{r.code}<EtfMarketBadge isTw={r.isTw} />
+          </div>
+          <div style={{ fontSize:13, color:C.mid, marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.name}</div>
+        </div>
+        <div style={{ textAlign:'center' }}>
+          <div style={{ fontSize:18, fontWeight:900, fontFamily:'monospace', color:rsColor(r.rs_rating) }}>{r.rs_rating}</div>
+          <div style={{ fontSize:11, color:C.mid, marginTop:1 }}>RS</div>
+        </div>
+        <div style={{ textAlign:'right' }}>
+          <div style={{ fontSize:15, fontWeight:700, fontFamily:'monospace', color:C.hi }}>{r.price}</div>
+          <div style={{ fontSize:12, fontFamily:'monospace', color:getChangeColor(chg, r.code) }}>
+            {chg > 0 ? '+' : ''}{chg?.toFixed(2)}%
+          </div>
+        </div>
+        <div style={{ textAlign:'center' }}>
+          <div style={{ fontSize:13, fontWeight:700, fontFamily:'monospace', color:'#38bdf8' }}>{r.line}</div>
+          <div style={{ fontSize:11, color:C.mid }}>距 {r.dist}%</div>
+        </div>
+        <div style={{ textAlign:'center' }}>
+          <div style={{ fontSize:14, fontWeight:700, fontFamily:'monospace', color:'#4ade80' }}>${r.targetPrice}</div>
+          <div style={{ fontSize:10, color:'#4ade80' }}>+3.5% 目標</div>
+        </div>
+        <div style={{ textAlign:'center' }}>
+          <div style={{ fontSize:14, fontWeight:700, fontFamily:'monospace', color:'#f87171' }}>${r.stopPrice}</div>
+          <div style={{ fontSize:10, color:'#f87171' }}>-1.5% 防守</div>
+        </div>
+        <div style={{ textAlign:'center' }}>
+          <span style={{
+            fontSize:11, fontWeight:700,
+            color: r.status.color, background: r.status.bg, border: `1px solid ${r.status.border}`,
+            borderRadius:6, padding:'3px 8px', display:'inline-block',
+          }}>
+            {r.status.text}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  function EtfShortMobileCard({ r, rank, onClick, expanded }) {
+    const chg = r.changePct;
+    return (
+      <div onClick={onClick} className="glass-hover" style={{
+        padding:'14px 16px',
+        borderBottom:'1px solid rgba(255,255,255,0.06)', cursor:'pointer',
+        background: expanded ? 'rgba(96,165,250,0.08)' : undefined,
+      }}>
+        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
+          <div style={{ display:'flex', alignItems:'baseline', gap:8, minWidth:0 }}>
+            <span style={{ fontSize:12, color:C.dim, fontFamily:'monospace', flexShrink:0 }}>{rank}</span>
+            <div style={{ minWidth:0 }}>
+              <Chevron open={expanded} />{' '}
+              <span style={{ fontSize:17, fontWeight:800, color:C.hi }}>{r.code}</span>
+              <EtfMarketBadge isTw={r.isTw} />
+              <span style={{ fontSize:13, color:C.mid, marginLeft:6,
+                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+                display:'inline-block', maxWidth:120, verticalAlign:'middle' }}>
+                {r.name}
+              </span>
+            </div>
+          </div>
+          <div style={{ textAlign:'right', flexShrink:0 }}>
+            <div style={{ fontSize:16, fontWeight:700, fontFamily:'monospace', color:C.hi }}>{r.price}</div>
+            <div style={{ fontSize:13, fontFamily:'monospace', color:getChangeColor(chg, r.code) }}>
+              {chg > 0 ? '+' : ''}{chg?.toFixed(2)}%
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:10, flexWrap:'wrap', gap:6 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ fontSize:12, color:C.label }}>支撐: <span style={{ color:'#38bdf8', fontFamily:'monospace', fontWeight:700 }}>{r.line} ({r.dist}%)</span></span>
+            <span style={{ fontSize:12, color:C.dim }}>RS: <b style={{ color:rsColor(r.rs_rating) }}>{r.rs_rating}</b></span>
+          </div>
+          <span style={{
+            fontSize:11, fontWeight:700,
+            color: r.status.color, background: r.status.bg, border: `1px solid ${r.status.border}`,
+            borderRadius:6, padding:'2px 7px',
+          }}>
+            {r.status.text}
+          </span>
+        </div>
+
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:8 }}>
+          <div style={{ background:'rgba(74,222,128,0.08)', border:'1px solid rgba(74,222,128,0.25)', borderRadius:6, padding:'5px 8px', textAlign:'center' }}>
+            <span style={{ fontSize:10, color:C.label }}>預估短線目標(+3.5%)</span>
+            <div style={{ fontSize:13, fontWeight:700, fontFamily:'monospace', color:'#4ade80' }}>${r.targetPrice}</div>
+          </div>
+          <div style={{ background:'rgba(248,113,113,0.08)', border:'1px solid rgba(248,113,113,0.25)', borderRadius:6, padding:'5px 8px', textAlign:'center' }}>
+            <span style={{ fontSize:10, color:C.label }}>防守停損(-1.5%)</span>
+            <div style={{ fontSize:13, fontWeight:700, fontFamily:'monospace', color:'#f87171' }}>${r.stopPrice}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function EtfLongDesktopRow({ r, rank, onClick, expanded }) {
+    const chg = r.changePct;
+    return (
+      <div onClick={onClick} className="glass-hover" style={{
+        display:'grid', gridTemplateColumns:COLS_LONG, alignItems:'center',
+        gap:10, padding:'12px 16px',
+        borderBottom:'1px solid rgba(255,255,255,0.06)', cursor:'pointer',
+        background: expanded ? 'rgba(96,165,250,0.08)' : undefined,
+      }}>
+        <div style={{ fontSize:13, color:C.dim, fontFamily:'monospace', textAlign:'right' }}>{rank}</div>
+        <div style={{ minWidth:0 }}>
+          <div style={{ fontSize:16, fontWeight:800, color:C.hi, lineHeight:1.2, display:'flex', alignItems:'center', gap:6 }}>
+            <Chevron open={expanded} />{r.code}<EtfMarketBadge isTw={r.isTw} />
+          </div>
+          <div style={{ fontSize:13, color:C.mid, marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.name}</div>
+        </div>
+        <div style={{ textAlign:'center' }}>
+          <div style={{ fontSize:18, fontWeight:900, fontFamily:'monospace', color:rsColor(r.rs_rating) }}>{r.rs_rating}</div>
+          <div style={{ fontSize:11, color:C.mid, marginTop:1 }}>RS</div>
+        </div>
+        <div style={{ textAlign:'right' }}>
+          <div style={{ fontSize:15, fontWeight:700, fontFamily:'monospace', color:C.hi }}>{r.price}</div>
+          <div style={{ fontSize:12, fontFamily:'monospace', color:getChangeColor(chg, r.code) }}>
+            {chg > 0 ? '+' : ''}{chg?.toFixed(2)}%
+          </div>
+        </div>
+        <div style={{ textAlign:'center' }}>
+          <span style={{ fontSize:12, fontWeight:700, color:freqColor(r.freq) }}>{r.freq}</span>
+        </div>
+        <div style={{ textAlign:'center' }}>
+          {r.yieldPct != null ? (
+            <div style={{ fontSize:15, fontWeight:700, fontFamily:'monospace', color:yieldColor(r.yieldPct) }}>
+              {r.yieldPct}%
+            </div>
+          ) : <span style={{ color:C.label }}>—</span>}
+        </div>
+        <div style={{ textAlign:'center' }}>
+          {r.ma200_dist != null ? (
+            <div style={{ fontSize:13, fontWeight:700, fontFamily:'monospace', color: r.ma200_dist >= 0 ? '#4ade80' : '#f87171' }}>
+              {r.ma200_dist > 0 ? '+' : ''}{r.ma200_dist}%
+            </div>
+          ) : <span style={{ color:C.label }}>—</span>}
+        </div>
+        <div style={{ textAlign:'center' }}>
+          <span style={{
+            fontSize:11, fontWeight:700,
+            color: r.status.color, background: r.status.bg, border: `1px solid ${r.status.border}`,
+            borderRadius:6, padding:'3px 8px', display:'inline-block',
+          }}>
+            {r.status.text}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  function EtfLongMobileCard({ r, rank, onClick, expanded }) {
+    const chg = r.changePct;
+    return (
+      <div onClick={onClick} className="glass-hover" style={{
+        padding:'14px 16px',
+        borderBottom:'1px solid rgba(255,255,255,0.06)', cursor:'pointer',
+        background: expanded ? 'rgba(96,165,250,0.08)' : undefined,
+      }}>
+        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
+          <div style={{ display:'flex', alignItems:'baseline', gap:8, minWidth:0 }}>
+            <span style={{ fontSize:12, color:C.dim, fontFamily:'monospace', flexShrink:0 }}>{rank}</span>
+            <div style={{ minWidth:0 }}>
+              <Chevron open={expanded} />{' '}
+              <span style={{ fontSize:17, fontWeight:800, color:C.hi }}>{r.code}</span>
+              <EtfMarketBadge isTw={r.isTw} />
+              <span style={{ fontSize:13, color:C.mid, marginLeft:6,
+                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+                display:'inline-block', maxWidth:120, verticalAlign:'middle' }}>
+                {r.name}
+              </span>
+            </div>
+          </div>
+          <div style={{ textAlign:'right', flexShrink:0 }}>
+            <div style={{ fontSize:16, fontWeight:700, fontFamily:'monospace', color:C.hi }}>{r.price}</div>
+            <div style={{ fontSize:13, fontFamily:'monospace', color:getChangeColor(chg, r.code) }}>
+              {chg > 0 ? '+' : ''}{chg?.toFixed(2)}%
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:10, flexWrap:'wrap', gap:6 }}>
+          <div style={{ display:'flex', alignItems:'baseline', gap:8 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:freqColor(r.freq) }}>{r.freq}</span>
+            <span style={{ fontSize:16, fontWeight:800, fontFamily:'monospace', color:yieldColor(r.yieldPct) }}>
+              {r.yieldPct != null ? `${r.yieldPct}%` : '—'}
+            </span>
+            <span style={{ fontSize:11, color:C.label }}>年化殖利</span>
+          </div>
+          <span style={{
+            fontSize:11, fontWeight:700,
+            color: r.status.color, background: r.status.bg, border: `1px solid ${r.status.border}`,
+            borderRadius:6, padding:'2px 7px',
+          }}>
+            {r.status.text}
+          </span>
+        </div>
+
+        <div style={{ marginTop:8, fontSize:12, color:C.dim, background:'rgba(255,255,255,0.03)', padding:'4px 8px', borderRadius:5, display:'flex', justifyContent:'space-between' }}>
+          <span>距年線(200MA)位置:</span>
+          <span style={{ fontFamily:'monospace', fontWeight:700, color: r.ma200_dist >= 0 ? '#4ade80' : '#f87171' }}>
+            {r.ma200_dist != null ? `${r.ma200_dist > 0 ? '+' : ''}${r.ma200_dist}%` : '—'}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  function EtfStrategySection({ mode, tw, us, onView }) {
+    const isMobile = useIsMobile();
+    const [expanded, setExpanded] = useState(null);
+    const [marketFilter, setMarketFilter] = useState('all');
+    const onToggle = code => setExpanded(c => (c === code ? null : code));
+
+    const loading = tw.loading || us.loading;
+    const error   = tw.error || us.error;
+
+    const twEtfs = (tw.data?.results || [])
+      .filter(r => r.source === 'etf' || /^(00\d{2,4}[LA]?)$/.test(r.code))
+      .map(r => evalEtf(normalizeResult(r), mode));
+
+    const usKnown = ['TQQQ','SOXL','QLD','SSO','UPRO','NVDL','SMH','QQQ','SCHD','JEPI','JEPQ','VYM','DGRO','VOO'];
+    const usEtfs = (us.data?.results || [])
+      .filter(r => r.source === 'etf' || usKnown.includes(r.code))
+      .map(r => evalEtf(normalizeResult(r), mode));
+
+    let pool = [];
+    if (marketFilter === 'tw') pool = twEtfs;
+    else if (marketFilter === 'us') pool = usEtfs;
+    else pool = [...twEtfs, ...usEtfs];
+
+    if (mode === 'short') {
+      pool.sort((a, b) => a.status.score - b.status.score || b.rs_rating - a.rs_rating);
+    } else {
+      pool = pool.filter(r => r.yieldPct != null || !r.code.includes('L'));
+      pool.sort((a, b) => a.status.score - b.status.score || (b.yieldPct || 0) - (a.yieldPct || 0));
+    }
+
+    const countAll = twEtfs.length + usEtfs.length;
+    const countTw  = twEtfs.length;
+    const countUs  = usEtfs.length;
+
+    const marketPills = [
+      { key: 'all', label: `全部 (${countAll})` },
+      { key: 'tw',  label: `🇹🇼 台股 (${countTw})` },
+      { key: 'us',  label: `🇺🇸 美股 (${countUs})` },
+    ];
+
+    return (
+      <div style={{ marginBottom:28 }}>
+        {mode === 'short' ? (
+          <div style={{
+            marginBottom:16, padding:'14px 18px', borderRadius:10,
+            background:'rgba(96,165,250,0.08)', border:'1px solid rgba(96,165,250,0.35)',
+            boxShadow:'0 4px 16px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
+              <span style={{ fontSize:18 }}>⚡</span>
+              <span style={{ fontSize:16, fontWeight:800, color:'#f1f5f9' }}>ETF 1~2天短線快打策略</span>
+            </div>
+            <div style={{ fontSize:13, color:'#cbd5e1', lineHeight:1.55 }}>
+              專注高流動性與強勢動能 ETF（含槓桿正2/正3），捕捉回測 SEMA 短線支撐、買盤承接的低點反彈機會。<br/>
+              <b>操作紀律：持股 1~2 天，以短線目標 (+3.5%) 停利，跌破支撐 (-1.5%) 嚴守停損。</b>
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            marginBottom:16, padding:'14px 18px', borderRadius:10,
+            background:'rgba(250,204,21,0.08)', border:'1px solid rgba(250,204,21,0.35)',
+            boxShadow:'0 4px 16px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
+              <span style={{ fontSize:18 }}>💰</span>
+              <span style={{ fontSize:16, fontWeight:800, color:'#f1f5f9' }}>ETF 長期穩健存股收息策略</span>
+            </div>
+            <div style={{ fontSize:13, color:'#cbd5e1', lineHeight:1.55 }}>
+              專注高配息、高抗跌與優質市值型 ETF，堅持長期股價站在年線 (200MA) 結構之上，拒絕賺股息賠價差。<br/>
+              <b>逢均線拉回特價時（⭐ 便宜加碼點）進場殖利率最高；高檔偏貴時維持定期定額。</b>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
+          {marketPills.map(btn => {
+            const active = marketFilter === btn.key;
+            return (
+              <button
+                key={btn.key}
+                onClick={() => setMarketFilter(btn.key)}
+                style={{
+                  fontSize:12,
+                  fontWeight: active ? 700 : 500,
+                  color: active ? '#60a5fa' : C.dim,
+                  background: active ? 'rgba(96,165,250,0.15)' : 'rgba(255,255,255,0.04)',
+                  border: active ? '1px solid rgba(96,165,250,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                  borderRadius:16,
+                  padding:'4px 12px',
+                  cursor:'pointer',
+                  transition:'all 0.15s ease',
+                }}
+              >
+                {btn.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="glass" style={{ overflow:'hidden' }}>
+          {loading && (
+            <div style={{ padding:40, textAlign:'center' }}>
+              <div className="spinner" style={{ margin:'0 auto 12px' }} />
+              <div style={{ fontSize:14, color:C.dim }}>載入中…</div>
+            </div>
+          )}
+          {!loading && error && (
+            <div style={{ padding:24, textAlign:'center', color:'#f87171', fontSize:14 }}>載入失敗：{error}</div>
+          )}
+          {!loading && !error && pool.length === 0 && (
+            <div style={{ padding:40, textAlign:'center', color:C.dim, fontSize:14 }}>
+              目前無符合條件的 ETF
+            </div>
+          )}
+          {pool.length > 0 && (
+            <>
+              {!isMobile && (
+                <div style={{
+                  display:'grid',
+                  gridTemplateColumns: mode === 'short' ? COLS_SHORT : COLS_LONG,
+                  gap:10, padding:'9px 16px',
+                  borderBottom:'1px solid rgba(255,255,255,0.08)'
+                }}>
+                  {(mode === 'short'
+                    ? ['#','代號/名稱','RS','現價/漲跌','支撐線(距%)','1~2天目標','防守停損','戰術狀態']
+                    : ['#','代號/名稱','RS','現價/漲跌','配息頻率','年化殖利','年線(200MA)','存股評價']
+                  ).map((h, i) => (
+                    <div key={i} style={{
+                      fontSize:11, fontWeight:700, letterSpacing:'0.12em',
+                      color:C.label, textTransform:'uppercase',
+                      textAlign: i===0 ? 'right' : (i===1||i===3) ? (i===1?'left':'right') : 'center'
+                    }}>{h}</div>
+                  ))}
+                </div>
+              )}
+              {pool.map((r, i) => {
+                const row = mode === 'short'
+                  ? (isMobile
+                    ? <EtfShortMobileCard r={r} rank={i+1} onClick={() => onToggle(r.code)} expanded={expanded === r.code} />
+                    : <EtfShortDesktopRow r={r} rank={i+1} onClick={() => onToggle(r.code)} expanded={expanded === r.code} />)
+                  : (isMobile
+                    ? <EtfLongMobileCard r={r} rank={i+1} onClick={() => onToggle(r.code)} expanded={expanded === r.code} />
+                    : <EtfLongDesktopRow r={r} rank={i+1} onClick={() => onToggle(r.code)} expanded={expanded === r.code} />);
+                return (
+                  <React.Fragment key={r.code}>
+                    {row}
+                    {expanded === r.code && <RowDetail r={r} onFullView={onView} />}
+                  </React.Fragment>
+                );
+              })}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   function ScreenerPanel() {
     const [active, setActive]     = useState('us');
     const [tw, setTw]             = useState({ data:null, loading:false, error:null });
@@ -771,8 +1241,14 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     // 切換 tab 時，若該市場尚未載入則自動載入
     const switchTab = (mkt) => {
       setActive(mkt);
-      const state = mkt === 'tw' ? tw : us;
-      if (!state.data && !state.loading) loadMarket(mkt);
+      if (mkt === 'us') {
+        if (!us.data && !us.loading) loadMarket('us');
+      } else if (mkt === 'tw') {
+        if (!tw.data && !tw.loading) loadMarket('tw');
+      } else {
+        if (!tw.data && !tw.loading) loadMarket('tw');
+        if (!us.data && !us.loading) loadMarket('us');
+      }
     };
 
     const loadAll = useCallback(() => {
@@ -796,8 +1272,10 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     };
 
     const TABS = [
-      { key:'us', label:'美股選股' },
-      { key:'tw', label:'台股選股' },
+      { key:'us',        label:'美股個股' },
+      { key:'tw',        label:'台股個股' },
+      { key:'etf_short', label:'⚡ ETF 短線快打' },
+      { key:'etf_long',  label:'💰 ETF 長期存股' },
     ];
 
     return (
@@ -805,15 +1283,16 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
         {/* Tab bar */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
           marginBottom:16, borderBottom:'1px solid rgba(255,255,255,0.08)', paddingBottom:0 }}>
-          <div style={{ display:'flex', gap:0 }}>
+          <div style={{ display:'flex', gap:0, flexWrap:'wrap' }}>
             {TABS.map(({ key, label }) => (
               <button key={key} onClick={() => switchTab(key)} style={{
-                padding:'9px 20px', fontSize:15, fontWeight:700,
+                padding:'9px 16px', fontSize:14, fontWeight:700,
                 background:'none', border:'none', cursor:'pointer',
                 color: active === key ? '#60a5fa' : C.dim,
                 borderBottom: active === key ? '2px solid #60a5fa' : '2px solid transparent',
                 transition:'color 0.15s, border-color 0.15s',
                 letterSpacing:'0.02em',
+                whiteSpace:'nowrap',
               }}>
                 {label}
               </button>
@@ -828,9 +1307,11 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
           </button>
         </div>
 
-        {/* Active market */}
+        {/* Active market / strategy */}
         {active === 'us' && <MarketSection market="us" data={us.data} loading={us.loading} error={us.error} onView={onView} />}
         {active === 'tw' && <MarketSection market="tw" data={tw.data} loading={tw.loading} error={tw.error} onView={onView} />}
+        {active === 'etf_short' && <EtfStrategySection mode="short" tw={tw} us={us} onView={onView} />}
+        {active === 'etf_long' && <EtfStrategySection mode="long" tw={tw} us={us} onView={onView} />}
       </div>
     );
   }
