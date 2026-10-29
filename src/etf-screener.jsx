@@ -99,7 +99,7 @@ import {
     const div = item.dividend || {};
 
     const freqStr = div.freq || '季配';
-    const monthsStr = div.months ? div.months.join('/') + '月' : (freqStr === '月配' ? '每月配息' : '');
+    const monthsStr = div.months ? (freqStr === '週配' ? '每週五發薪' : div.months.join('/') + '月') : (freqStr === '月配' ? '每月配息' : (freqStr === '週配' ? '每週五發薪' : ''));
     const yieldVal = div.yield_pct;
 
     // 配息頻率顏色
@@ -141,6 +141,21 @@ import {
               }}
             >
               {isTw ? '台股' : '美股'}
+            </span>
+
+            {/* 雙軌標籤：核心基石 vs 量化動態雷達 */}
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: item.tier === 'dynamic' ? '#fbbf24' : '#818cf8',
+                background: item.tier === 'dynamic' ? 'rgba(251, 191, 36, 0.12)' : 'rgba(129, 140, 248, 0.12)',
+                border: `1px solid ${item.tier === 'dynamic' ? 'rgba(251, 191, 36, 0.35)' : 'rgba(129, 140, 248, 0.3)'}`,
+                borderRadius: 4,
+                padding: '1px 5px',
+              }}
+            >
+              {item.tier === 'dynamic' ? '⚡ 動態雷達' : '🏛️ 核心基石'}
             </span>
 
             {/* 配息週期標籤 (月配 / 季配 / 週配) */}
@@ -517,8 +532,8 @@ import {
       });
     }, [rawEtfPool, liveData]);
 
-    // 月月配組合標的清單
-    const COMBO_CODES = useMemo(() => new Set(['0056', '00878', '00919', 'SCHD', 'JEPI', 'JEPQ']), []);
+    // 月月配/週週配組合標的清單
+    const COMBO_CODES = useMemo(() => new Set(['0056', '00878', '00919', 'SCHD', 'JEPI', 'JEPQ', 'XDTE', 'QDTE', 'SGOV']), []);
 
     // 依類別與市場過濾
     const filteredEtfs = useMemo(() => {
@@ -581,11 +596,11 @@ import {
 
     // 存股類別按鈕 (動態反映當前市場下的各類別數量)
     const CATEGORY_BUTTONS = [
-      { key: 'all',      icon: '🌐', title: '全部 ETF', count: countAll, desc: '全市場核心資產' },
-      { key: 'dividend', icon: '💰', title: '高息現金流', count: countDividend, desc: '7~10%+ 月季高配息' },
-      { key: 'growth',   icon: '🚀', title: '市值成長型', count: countGrowth, desc: '長線大盤資產翻倍' },
-      { key: 'bond',     icon: '🛡️', title: '債券防禦型', count: countBond, desc: '鎖定息率 · 股災防禦' },
-      { key: 'combo',    icon: '✨', title: '月月領息指南', count: countCombo, desc: '自組1~12月現金流' },
+      { key: 'all',      icon: '🌐', title: '全部 ETF', count: countAll, desc: '全市場核心與動態資產' },
+      { key: 'dividend', icon: '💰', title: '高息現金流', count: countDividend, desc: '7~26%+ 週/月/季高配息' },
+      { key: 'growth',   icon: '🚀', title: '市值成長型', count: countGrowth, desc: '長線大盤複利翻倍' },
+      { key: 'bond',     icon: '🛡️', title: '債券防禦型', count: countBond, desc: '短長債避險 · 鎖定息率' },
+      { key: 'combo',    icon: '✨', title: '月月領息指南', count: countCombo, desc: '自組週月現金流' },
     ];
 
     // 市場篩選按鈕 (動態反映當前類別下的各市場數量)
@@ -765,6 +780,35 @@ import {
                   </div>
                   <div style={{ fontSize: 11, color: C.dim, marginTop: 6 }}>
                     優勢：兼顧美元資產配置，既有 SCHD 股息成長體質，又有 JEPI/JEPQ 高額月配補貼。
+                  </div>
+                </div>
+              )}
+
+              {/* 組合三：美股極致週配發薪日 */}
+              {(market === 'all' || market === 'us') && (
+                <div
+                  style={{
+                    background: 'rgba(15, 23, 42, 0.6)',
+                    border: '1px solid rgba(244, 63, 94, 0.3)',
+                    borderRadius: 10,
+                    padding: '12px 14px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 800, color: '#f43f5e' }}>
+                      ⚡ 美股極致「週配發薪」組合
+                    </span>
+                    <span style={{ fontSize: 11, color: '#fda4af', background: 'rgba(244, 63, 94, 0.12)', padding: '1px 6px', borderRadius: 4 }}>
+                      預估年化 ~20%+
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: C.mid, lineHeight: 1.5 }}>
+                    • <b>每週五發薪①</b>：XDTE 標普500 0DTE (週配 ~18%)<br />
+                    • <b>每週五發薪②</b>：QDTE 納指100 0DTE (週配 ~26%)<br />
+                    • <b>資金停泊底座</b>：SGOV 0-3月超短債 (月配 ~5.1%)
+                  </div>
+                  <div style={{ fontSize: 11, color: C.dim, marginTop: 6 }}>
+                    優勢：每週五固定現金入帳，搭配 SGOV 超短債停泊本金避險，兼顧極高現金流與下檔防守。
                   </div>
                 </div>
               )}

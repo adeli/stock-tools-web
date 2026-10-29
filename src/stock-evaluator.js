@@ -3,48 +3,55 @@
 
 export const CORE_US_ETFS_DEF = [
   // 市值成長型
-  { code: 'VOO',  name: 'Vanguard 標普500 ETF', category: 'growth', rs_rating: 72, dividend: { yield_pct: 1.4, freq: '季配', months: [3, 6, 9, 12] }, desc: '全美500大企業精華 · 長線複利首選' },
-  { code: 'QQQ',  name: 'Invesco 納斯達克100 ETF', category: 'growth', rs_rating: 80, dividend: { yield_pct: 0.6, freq: '季配', months: [3, 6, 9, 12] }, desc: '科技巨頭聚集 · 美股頂尖成長引擎' },
-  { code: 'SPY',  name: 'SPDR 標普500 ETF', category: 'growth', rs_rating: 72, dividend: { yield_pct: 1.2, freq: '季配', months: [3, 6, 9, 12] }, desc: '全球流動性最大 · 標普500旗艦' },
-  { code: 'SMH',  name: 'VanEck 半導體 ETF', category: 'growth', rs_rating: 88, dividend: { yield_pct: 0.8, freq: '年配', months: [12] }, desc: '全球半導體龍頭 · AI晶片硬體核心' },
-  // 高股息現金流型
-  { code: 'SCHD', name: 'Schwab 美國股息股票 ETF', category: 'dividend', rs_rating: 78, dividend: { yield_pct: 3.5, freq: '季配', months: [3, 6, 9, 12], fill_rate: '100% 填息' }, desc: '高殖利率兼顧基本面成長 · 美股存股首選' },
-  { code: 'JEPI', name: 'JPMorgan 股票溢價收益 ETF', category: 'dividend', rs_rating: 45, dividend: { yield_pct: 8.2, freq: '月配', months: [1,2,3,4,5,6,7,8,9,10,11,12], fill_rate: '月月領息' }, desc: '標普500掩護性買權 · 高額月現金流' },
-  { code: 'JEPQ', name: 'JPMorgan 納斯達克股票溢價 ETF', category: 'dividend', rs_rating: 55, dividend: { yield_pct: 9.5, freq: '月配', months: [1,2,3,4,5,6,7,8,9,10,11,12], fill_rate: '月月領息' }, desc: '納指100掩護性買權 · 科技高配息月配' },
-  { code: 'VYM',  name: 'Vanguard 高股利收益 ETF', category: 'dividend', rs_rating: 40, dividend: { yield_pct: 3.0, freq: '季配', months: [3, 6, 9, 12] }, desc: '老牌穩健高息 · 涵蓋全美優質高息企業' },
-  { code: 'DGRO', name: 'iShares 核心股息成長 ETF', category: 'dividend', rs_rating: 48, dividend: { yield_pct: 2.4, freq: '季配', months: [3, 6, 9, 12] }, desc: '連續配息增長公司 · 股息成長典範' },
-  // 債券防禦型
-  { code: 'TLT',  name: 'iShares 20年期以上美國公債 ETF', category: 'bond', rs_rating: 35, dividend: { yield_pct: 4.6, freq: '月配', months: [1,2,3,4,5,6,7,8,9,10,11,12] }, desc: '長天期美債 · 股災防禦與降息受惠' },
-  { code: 'BND',  name: 'Vanguard 總體債券市場 ETF', category: 'bond', rs_rating: 38, dividend: { yield_pct: 4.4, freq: '月配', months: [1,2,3,4,5,6,7,8,9,10,11,12] }, desc: '全方位投資級債券 · 資產配置穩健定海神針' },
+  { code: 'VOO',  name: 'Vanguard 標普500 ETF', category: 'growth', tier: 'core', rs_rating: 72, dividend: { yield_pct: 1.4, freq: '季配', months: [3, 6, 9, 12] }, desc: '全美500大企業精華 · 長線複利首選' },
+  { code: 'VTI',  name: 'Vanguard 全市場股票 ETF', category: 'growth', tier: 'core', rs_rating: 74, dividend: { yield_pct: 1.4, freq: '季配', months: [3, 6, 9, 12] }, desc: '全美3,600+大中小型企業 · 最全方位資產配置基石' },
+  { code: 'QQQ',  name: 'Invesco 納斯達克100 ETF', category: 'growth', tier: 'core', rs_rating: 80, dividend: { yield_pct: 0.6, freq: '季配', months: [3, 6, 9, 12] }, desc: '科技巨頭聚集 · 美股頂尖成長引擎' },
+  { code: 'SPY',  name: 'SPDR 標普500 ETF', category: 'growth', tier: 'core', rs_rating: 72, dividend: { yield_pct: 1.2, freq: '季配', months: [3, 6, 9, 12] }, desc: '全球流動性最大 · 標普500旗艦' },
+  { code: 'SMH',  name: 'VanEck 半導體 ETF', category: 'growth', tier: 'core', rs_rating: 88, dividend: { yield_pct: 0.8, freq: '年配', months: [12] }, desc: '全球半導體龍頭 · AI晶片硬體核心' },
+  { code: 'SOXX', name: 'iShares 半導體 ETF', category: 'growth', tier: 'dynamic', rs_rating: 86, dividend: { yield_pct: 0.7, freq: '季配', months: [3, 6, 9, 12] }, desc: '費城半導體指數旗艦 · AI與晶片硬體動態精選' },
+  { code: 'VT',   name: 'Vanguard 全球股票 ETF', category: 'growth', tier: 'dynamic', rs_rating: 70, dividend: { yield_pct: 1.9, freq: '季配', months: [3, 6, 9, 12] }, desc: '涵蓋全世界9,000+企業 · 跨國地緣風險分散' },
+  // 高股息現金流型 (含月配與週配)
+  { code: 'SCHD', name: 'Schwab 美國股息股票 ETF', category: 'dividend', tier: 'core', rs_rating: 78, dividend: { yield_pct: 3.5, freq: '季配', months: [3, 6, 9, 12], fill_rate: '100% 填息' }, desc: '高殖利率兼顧基本面成長 · 美股存股首選' },
+  { code: 'JEPI', name: 'JPMorgan 股票溢價收益 ETF', category: 'dividend', tier: 'core', rs_rating: 45, dividend: { yield_pct: 8.2, freq: '月配', months: [1,2,3,4,5,6,7,8,9,10,11,12], fill_rate: '月月領息' }, desc: '標普500掩護性買權 · 高額月現金流' },
+  { code: 'JEPQ', name: 'JPMorgan 納斯達克股票溢價 ETF', category: 'dividend', tier: 'core', rs_rating: 55, dividend: { yield_pct: 9.5, freq: '月配', months: [1,2,3,4,5,6,7,8,9,10,11,12], fill_rate: '月月領息' }, desc: '納指100掩護性買權 · 科技高配息月配' },
+  { code: 'XDTE', name: 'Roundhill 標普500 0DTE 週配息 ETF', category: 'dividend', tier: 'core', rs_rating: 70, dividend: { yield_pct: 18.5, freq: '週配', months: [1,2,3,4,5,6,7,8,9,10,11,12], fill_rate: '每週五發薪' }, desc: '每日賣標普500當日到期買權 · ~18%高額週配現金流' },
+  { code: 'QDTE', name: 'Roundhill 納指100 0DTE 週配息 ETF', category: 'dividend', tier: 'core', rs_rating: 75, dividend: { yield_pct: 26.5, freq: '週配', months: [1,2,3,4,5,6,7,8,9,10,11,12], fill_rate: '每週五發薪' }, desc: '每日賣納指100當日到期買權 · ~26%科技高配息週配' },
+  { code: 'VYM',  name: 'Vanguard 高股利收益 ETF', category: 'dividend', tier: 'core', rs_rating: 40, dividend: { yield_pct: 3.0, freq: '季配', months: [3, 6, 9, 12] }, desc: '老牌穩健高息 · 涵蓋全美優質高息企業' },
+  { code: 'DGRO', name: 'iShares 核心股息成長 ETF', category: 'dividend', tier: 'core', rs_rating: 48, dividend: { yield_pct: 2.4, freq: '季配', months: [3, 6, 9, 12] }, desc: '連續配息增長公司 · 股息成長典範' },
+  { code: 'MSTY', name: 'YieldMax MSTR 選擇權高收益 ETF', category: 'dividend', tier: 'dynamic', rs_rating: 68, dividend: { yield_pct: 65.0, freq: '月配', months: [1,2,3,4,5,6,7,8,9,10,11,12], fill_rate: '高額月配' }, desc: '微策略比特幣持倉掩護買權 · 超高現金流衛星配置' },
+  // 債券防禦型 (含短債資金停泊)
+  { code: 'SGOV', name: 'iShares 0-3月短期美債 ETF', category: 'bond', tier: 'core', rs_rating: 40, dividend: { yield_pct: 5.1, freq: '月配', months: [1,2,3,4,5,6,7,8,9,10,11,12], fill_rate: '月月領息' }, desc: '超短期美國國庫券 · ~5.1%穩健息率 · 資金極致避風港' },
+  { code: 'TLT',  name: 'iShares 20年期以上美國公債 ETF', category: 'bond', tier: 'core', rs_rating: 35, dividend: { yield_pct: 4.6, freq: '月配', months: [1,2,3,4,5,6,7,8,9,10,11,12] }, desc: '長天期美債 · 股災防禦與降息受惠' },
+  { code: 'BND',  name: 'Vanguard 總體債券市場 ETF', category: 'bond', tier: 'core', rs_rating: 38, dividend: { yield_pct: 4.4, freq: '月配', months: [1,2,3,4,5,6,7,8,9,10,11,12] }, desc: '全方位投資級債券 · 資產配置穩健定海神針' },
   // 槓桿型 (保留供查詢)
-  { code: 'TQQQ', name: 'ProShares 納指3倍做多', category: 'leverage', rs_rating: 85, isLeverage: true },
-  { code: 'SOXL', name: 'Direxion 半導體3倍做多', category: 'leverage', rs_rating: 99, isLeverage: true },
-  { code: 'QLD',  name: 'ProShares 納指2倍做多', category: 'leverage', rs_rating: 80, isLeverage: true },
-  { code: 'SSO',  name: 'ProShares 標普2倍做多', category: 'leverage', rs_rating: 70, isLeverage: true },
-  { code: 'UPRO', name: 'ProShares 標普3倍做多', category: 'leverage', rs_rating: 75, isLeverage: true },
-  { code: 'NVDL', name: 'GraniteShares 輝達2倍做多', category: 'leverage', rs_rating: 98, isLeverage: true },
+  { code: 'TQQQ', name: 'ProShares 納指3倍做多', category: 'leverage', tier: 'core', rs_rating: 85, isLeverage: true },
+  { code: 'SOXL', name: 'Direxion 半導體3倍做多', category: 'leverage', tier: 'core', rs_rating: 99, isLeverage: true },
+  { code: 'QLD',  name: 'ProShares 納指2倍做多', category: 'leverage', tier: 'core', rs_rating: 80, isLeverage: true },
+  { code: 'SSO',  name: 'ProShares 標普2倍做多', category: 'leverage', tier: 'core', rs_rating: 70, isLeverage: true },
+  { code: 'UPRO', name: 'ProShares 標普3倍做多', category: 'leverage', tier: 'core', rs_rating: 75, isLeverage: true },
+  { code: 'NVDL', name: 'GraniteShares 輝達2倍做多', category: 'leverage', tier: 'core', rs_rating: 98, isLeverage: true },
 ];
 
 export const CORE_TW_ETFS_DEF = [
   // 市值成長型
-  { code: '0050',   name: '元大台灣50', category: 'growth', rs_rating: 80, dividend: { yield_pct: 1.5, freq: '半年配', months: [1, 7], last_amt: 1.00, fill_rate: '100% 填息 (平均15天)' }, desc: '台灣前50大權值巨頭 · 經濟成長同軌複利' },
-  { code: '006208', name: '富邦台灣50', category: 'growth', rs_rating: 80, dividend: { yield_pct: 1.6, freq: '半年配', months: [7, 11], last_amt: 0.90, fill_rate: '100% 填息' }, desc: '超低內扣費用 · 小資定期定額首選' },
+  { code: '0050',   name: '元大台灣50', category: 'growth', tier: 'core', rs_rating: 80, dividend: { yield_pct: 1.5, freq: '半年配', months: [1, 7], last_amt: 1.00, fill_rate: '100% 填息 (平均15天)' }, desc: '台灣前50大權值巨頭 · 經濟成長同軌複利' },
+  { code: '006208', name: '富邦台灣50', category: 'growth', tier: 'core', rs_rating: 80, dividend: { yield_pct: 1.6, freq: '半年配', months: [7, 11], last_amt: 0.90, fill_rate: '100% 填息' }, desc: '超低內扣費用 · 小資定期定額首選' },
   // 高股息現金流型
-  { code: '00878',  name: '國泰永續高股息', category: 'dividend', rs_rating: 71, dividend: { yield_pct: 7.1, freq: '季配', months: [2, 5, 8, 11], last_amt: 0.55, fill_rate: '100% 填息 (平均8天)' }, desc: '百萬股民高人氣 · ESG永續兼顧抗跌低波' },
-  { code: '0056',   name: '元大高股息', category: 'dividend', rs_rating: 85, dividend: { yield_pct: 8.7, freq: '季配', months: [1, 4, 7, 10], last_amt: 1.07, fill_rate: '100% 填息 (平均14天)' }, desc: '歷史最悠久高息旗艦 · 連續14年填息紀錄' },
-  { code: '00919',  name: '群益台灣精選高息', category: 'dividend', rs_rating: 65, dividend: { yield_pct: 10.4, freq: '季配', months: [3, 6, 9, 12], last_amt: 0.72, fill_rate: '100% 填息 (平均28天)' }, desc: '強悍10%+高配息 · 宣告高息股精準納入' },
-  { code: '00713',  name: '元大台灣高息低波', category: 'dividend', rs_rating: 75, dividend: { yield_pct: 6.8, freq: '季配', months: [3, 6, 9, 12], last_amt: 1.50, fill_rate: '100% 填息 (平均12天)' }, desc: '多空歷練最佳防守王 · 股災抗震獲利穩' },
-  { code: '00929',  name: '復華台灣科技優息', category: 'dividend', rs_rating: 45, dividend: { yield_pct: 8.9, freq: '月配', months: [1,2,3,4,5,6,7,8,9,10,11,12], last_amt: 0.11, fill_rate: '月月領息' }, desc: '首檔台股月配息 · 科技成長與現金流兼顧' },
-  { code: '00918',  name: '大華優利高填息30', category: 'dividend', rs_rating: 70, dividend: { yield_pct: 12.1, freq: '季配', months: [3, 6, 9, 12], last_amt: 0.78, fill_rate: '高填息篩選' }, desc: '專注歷史填息率 · 拒絕貼息陷阱' },
-  { code: '00938',  name: '凱基優選30', category: 'dividend', rs_rating: 60, dividend: { yield_pct: 3.4, freq: '季配', months: [3, 6, 9, 12], last_amt: 0.23 }, desc: '優選高獲利企業 · 價值成長配置' },
-  { code: '00939',  name: '統一台灣高息動能', category: 'dividend', rs_rating: 50, dividend: { yield_pct: 4.3, freq: '月配', months: [1,2,3,4,5,6,7,8,9,10,11,12], last_amt: 0.06 }, desc: '月底領息平衡發薪日 · 科技動能加碼' },
+  { code: '00878',  name: '國泰永續高股息', category: 'dividend', tier: 'core', rs_rating: 71, dividend: { yield_pct: 7.1, freq: '季配', months: [2, 5, 8, 11], last_amt: 0.55, fill_rate: '100% 填息 (平均8天)' }, desc: '百萬股民高人氣 · ESG永續兼顧抗跌低波' },
+  { code: '0056',   name: '元大高股息', category: 'dividend', tier: 'core', rs_rating: 85, dividend: { yield_pct: 8.7, freq: '季配', months: [1, 4, 7, 10], last_amt: 1.07, fill_rate: '100% 填息 (平均14天)' }, desc: '歷史最悠久高息旗艦 · 連續14年填息紀錄' },
+  { code: '00919',  name: '群益台灣精選高息', category: 'dividend', tier: 'core', rs_rating: 65, dividend: { yield_pct: 10.4, freq: '季配', months: [3, 6, 9, 12], last_amt: 0.72, fill_rate: '100% 填息 (平均28天)' }, desc: '強悍10%+高配息 · 宣告高息股精準納入' },
+  { code: '00713',  name: '元大台灣高息低波', category: 'dividend', tier: 'core', rs_rating: 75, dividend: { yield_pct: 6.8, freq: '季配', months: [3, 6, 9, 12], last_amt: 1.50, fill_rate: '100% 填息 (平均12天)' }, desc: '多空歷練最佳防守王 · 股災抗震獲利穩' },
+  { code: '00929',  name: '復華台灣科技優息', category: 'dividend', tier: 'core', rs_rating: 45, dividend: { yield_pct: 8.9, freq: '月配', months: [1,2,3,4,5,6,7,8,9,10,11,12], last_amt: 0.11, fill_rate: '月月領息' }, desc: '首檔台股月配息 · 科技成長與現金流兼顧' },
+  { code: '00918',  name: '大華優利高填息30', category: 'dividend', tier: 'core', rs_rating: 70, dividend: { yield_pct: 12.1, freq: '季配', months: [3, 6, 9, 12], last_amt: 0.78, fill_rate: '高填息篩選' }, desc: '專注歷史填息率 · 拒絕貼息陷阱' },
+  { code: '00938',  name: '凱基優選30', category: 'dividend', tier: 'core', rs_rating: 60, dividend: { yield_pct: 3.4, freq: '季配', months: [3, 6, 9, 12], last_amt: 0.23 }, desc: '優選高獲利企業 · 價值成長配置' },
+  { code: '00939',  name: '統一台灣高息動能', category: 'dividend', tier: 'core', rs_rating: 50, dividend: { yield_pct: 4.3, freq: '月配', months: [1,2,3,4,5,6,7,8,9,10,11,12], last_amt: 0.06 }, desc: '月底領息平衡發薪日 · 科技動能加碼' },
   // 債券防禦型
-  { code: '00679B', name: '元大美債20年', category: 'bond', rs_rating: 40, dividend: { yield_pct: 4.7, freq: '季配', months: [2, 5, 8, 11] }, desc: '美國20年期長天期公債 · 股災防禦資產' },
-  { code: '00687B', name: '國泰20年美債', category: 'bond', rs_rating: 40, dividend: { yield_pct: 4.8, freq: '季配', months: [3, 6, 9, 12] }, desc: '長天期公債溢價低 · 降息波段優選' },
-  { code: '00720B', name: '元大投資級公司債', category: 'bond', rs_rating: 42, dividend: { yield_pct: 5.8, freq: '季配', months: [1, 4, 7, 10] }, desc: 'BBB級以上投資級跨國企業債 · 5.8%高殖利率' },
+  { code: '00679B', name: '元大美債20年', category: 'bond', tier: 'core', rs_rating: 40, dividend: { yield_pct: 4.7, freq: '季配', months: [2, 5, 8, 11] }, desc: '美國20年期長天期公債 · 股災防禦資產' },
+  { code: '00687B', name: '國泰20年美債', category: 'bond', tier: 'core', rs_rating: 40, dividend: { yield_pct: 4.8, freq: '季配', months: [3, 6, 9, 12] }, desc: '長天期公債溢價低 · 降息波段優選' },
+  { code: '00720B', name: '元大投資級公司債', category: 'bond', tier: 'core', rs_rating: 42, dividend: { yield_pct: 5.8, freq: '季配', months: [1, 4, 7, 10] }, desc: 'BBB級以上投資級跨國企業債 · 5.8%高殖利率' },
   // 槓桿型 (保留供查詢)
-  { code: '00631L', name: '元大台灣50正2', category: 'leverage', rs_rating: 99, isLeverage: true },
-  { code: '00670L', name: '富邦NASDAQ正2', category: 'leverage', rs_rating: 60, isLeverage: true },
+  { code: '00631L', name: '元大台灣50正2', category: 'leverage', tier: 'core', rs_rating: 99, isLeverage: true },
+  { code: '00670L', name: '富邦NASDAQ正2', category: 'leverage', tier: 'core', rs_rating: 60, isLeverage: true },
 ];
 
 export const BENCHMARK_TW_STOCKS_DEF = [
