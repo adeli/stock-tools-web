@@ -402,6 +402,13 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     const targetPrice = tp.target_price || (price * 1.045).toFixed(1);
     const targetPct = tp.target_pct || +4.5;
     const rrr = tp.rrr || 2.5;
+    const rrrGrade = rrr >= 2.5
+      ? { text: '極佳', color: '#4ade80', bg: 'rgba(74, 222, 128, 0.08)', border: 'rgba(74, 222, 128, 0.25)' }
+      : rrr >= 1.8
+      ? { text: '合格', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.08)', border: 'rgba(56, 189, 248, 0.25)' }
+      : { text: '偏低勿追', color: '#fb923c', bg: 'rgba(251, 146, 60, 0.08)', border: 'rgba(251, 146, 60, 0.25)' };
+
+    const rrrTooltip = `風報比 (RRR) = 潛在目標獲利 ÷ 潛在停損風險\n• ≥2.5:1【極佳】冒 1 元風險搏 2.5 元以上利潤，勝率 28% 即保本，高期望值首選單。\n• 1.8~2.4:1【合格】符合機構盈虧比門檻，可分批布局。\n• <1.8:1【偏低勿追】空間受限，不建議追高，等待拉回均線。`;
 
     // ETF 存股數據
     const etfYield = r.dividend?.yield_pct ?? (
@@ -591,16 +598,23 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
 
                 {/* 風報比 */}
                 <div
+                  title={rrrTooltip}
                   style={{
                     fontSize: 11,
                     fontFamily: 'monospace',
-                    color: '#38bdf8',
-                    background: 'rgba(56, 189, 248, 0.06)',
+                    color: rrrGrade.color,
+                    background: rrrGrade.bg,
+                    border: `1px solid ${rrrGrade.border}`,
                     borderRadius: 5,
-                    padding: '2px 6px',
+                    padding: '2px 7px',
+                    cursor: 'help',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 3,
                   }}
                 >
-                  風報比 {rrr}:1
+                  <span>風報比 {rrr}:1 ({rrrGrade.text})</span>
+                  <span style={{ fontSize: 9.5, opacity: 0.65 }}>ⓘ</span>
                 </div>
               </>
             ) : (
