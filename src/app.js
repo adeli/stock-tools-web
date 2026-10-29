@@ -9,6 +9,7 @@ function showTab(name, btn) {
   document.querySelectorAll('[data-tab="' + name + '"]').forEach(el => el.classList.add('active'));
   if (name === 'report')       { loadCards(); }
   if (name === 'screener')    { window.screenerLoad && window.screenerLoad(); }
+  if (name === 'etf-screener') { window.etfScreenerLoad && window.etfScreenerLoad(); }
   if (name === 'etf-dividend') { window.etfDividendLoad && window.etfDividendLoad(); }
   window.__activeTab = name;
   window.dispatchEvent(new CustomEvent('tabchange', { detail: name }));

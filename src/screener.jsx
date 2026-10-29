@@ -138,7 +138,6 @@ import {
     const sd = r.sema_data || {};
 
     // 實戰數據數值 (Line 3 metrics)
-    const isEtfSave = strategy === 'etf_save' || unified.isEtf;
     const buyMin = tp.buyZone ? tp.buyZone[0] : (price * 0.992).toFixed(1);
     const buyMax = tp.buyZone ? tp.buyZone[1] : (price * 1.005).toFixed(1);
     const stopLoss = tp.stopLoss || (price * 0.985).toFixed(1);
@@ -146,16 +145,6 @@ import {
     const targetPrice = tp.targetPrice || (price * 1.045).toFixed(1);
     const targetPct = tp.targetPct || +4.5;
     const rrr = tp.rrr || 2.5;
-
-    // ETF 存股數據
-    const etfYield = unified.dividend?.yield_pct ?? (
-      r.code === 'SCHD' ? 3.5 :
-      r.code === 'JEPI' ? 8.2 :
-      r.code === 'JEPQ' ? 9.5 :
-      r.code === 'VYM'  ? 3.0 :
-      r.code === 'VOO'  ? 1.4 : null
-    );
-    const etfFreq = unified.dividend?.freq || (['JEPI','JEPQ'].includes(dispCode) ? '月配' : '季配');
 
     const lightColor = l => l === 'GREEN' ? '#4ade80' : l === 'YELLOW' ? '#facc15' : '#f87171';
 
@@ -286,126 +275,71 @@ import {
         >
           {/* 左側：具體數據 Pills */}
           <div className="trade-pills-row" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-            {!isEtfSave ? (
-              <>
-                {/* 建議進場 */}
-                <div
-                  style={{
-                    fontSize: 11.5,
-                    fontFamily: 'monospace',
-                    color: '#93c5fd',
-                    background: 'rgba(96, 165, 250, 0.08)',
-                    border: '1px solid rgba(96, 165, 250, 0.22)',
-                    borderRadius: 5,
-                    padding: '2px 7px',
-                  }}
-                >
-                  <span style={{ color: C.dim, fontSize: 10.5 }}>進場: </span>${buyMin}~{buyMax}
-                </div>
+            {/* 建議進場 */}
+            <div
+              style={{
+                fontSize: 11.5,
+                fontFamily: 'monospace',
+                color: '#93c5fd',
+                background: 'rgba(96, 165, 250, 0.08)',
+                border: '1px solid rgba(96, 165, 250, 0.22)',
+                borderRadius: 5,
+                padding: '2px 7px',
+              }}
+            >
+              <span style={{ color: C.dim, fontSize: 10.5 }}>進場: </span>${buyMin}~{buyMax}
+            </div>
 
-                {/* 防守停損 */}
-                <div
-                  style={{
-                    fontSize: 11.5,
-                    fontFamily: 'monospace',
-                    color: '#f87171',
-                    background: 'rgba(239, 68, 68, 0.08)',
-                    border: '1px solid rgba(239, 68, 68, 0.22)',
-                    borderRadius: 5,
-                    padding: '2px 7px',
-                  }}
-                >
-                  <span style={{ color: C.dim, fontSize: 10.5 }}>停損: </span>${stopLoss} ({stopPct}%)
-                </div>
+            {/* 防守停損 */}
+            <div
+              style={{
+                fontSize: 11.5,
+                fontFamily: 'monospace',
+                color: '#f87171',
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.22)',
+                borderRadius: 5,
+                padding: '2px 7px',
+              }}
+            >
+              <span style={{ color: C.dim, fontSize: 10.5 }}>停損: </span>${stopLoss} ({stopPct}%)
+            </div>
 
-                {/* 短線目標 */}
-                <div
-                  style={{
-                    fontSize: 11.5,
-                    fontFamily: 'monospace',
-                    color: '#4ade80',
-                    background: 'rgba(34, 197, 94, 0.08)',
-                    border: '1px solid rgba(34, 197, 94, 0.22)',
-                    borderRadius: 5,
-                    padding: '2px 7px',
-                  }}
-                >
-                  <span style={{ color: C.dim, fontSize: 10.5 }}>目標: </span>${targetPrice} (+{targetPct}%)
-                </div>
+            {/* 短線目標 */}
+            <div
+              style={{
+                fontSize: 11.5,
+                fontFamily: 'monospace',
+                color: '#4ade80',
+                background: 'rgba(34, 197, 94, 0.08)',
+                border: '1px solid rgba(34, 197, 94, 0.22)',
+                borderRadius: 5,
+                padding: '2px 7px',
+              }}
+            >
+              <span style={{ color: C.dim, fontSize: 10.5 }}>目標: </span>${targetPrice} (+{targetPct}%)
+            </div>
 
-                {/* 風報比 */}
-                <div
-                  title={rrrGrade.tooltip}
-                  style={{
-                    fontSize: 11,
-                    fontFamily: 'monospace',
-                    color: rrrGrade.color,
-                    background: rrrGrade.bg,
-                    border: `1px solid ${rrrGrade.border}`,
-                    borderRadius: 5,
-                    padding: '2px 7px',
-                    cursor: 'help',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 3,
-                  }}
-                >
-                  <span>風報比 {rrr}:1 ({rrrGrade.text})</span>
-                  <span style={{ fontSize: 9.5, opacity: 0.65 }}>ⓘ</span>
-                </div>
-              </>
-            ) : (
-              <>
-                {/* ETF 存股指標 */}
-                {etfYield != null && (
-                  <div
-                    style={{
-                      fontSize: 11.5,
-                      fontFamily: 'monospace',
-                      color: '#4ade80',
-                      background: 'rgba(34, 197, 94, 0.08)',
-                      border: '1px solid rgba(34, 197, 94, 0.22)',
-                      borderRadius: 5,
-                      padding: '2px 7px',
-                    }}
-                  >
-                    <span style={{ color: C.dim, fontSize: 10.5 }}>年化殖利: </span>{etfYield}% ({etfFreq})
-                  </div>
-                )}
-
-                {r.ma200_dist != null && (
-                  <div
-                    style={{
-                      fontSize: 11.5,
-                      fontFamily: 'monospace',
-                      color: r.ma200_dist >= 0 ? '#38bdf8' : '#f87171',
-                      background: 'rgba(255, 255, 255, 0.04)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      borderRadius: 5,
-                      padding: '2px 7px',
-                    }}
-                  >
-                    <span style={{ color: C.dim, fontSize: 10.5 }}>距年線: </span>
-                    {r.ma200_dist > 0 ? '+' : ''}{r.ma200_dist}%
-                  </div>
-                )}
-
-                {setup.pullback_line && (
-                  <div
-                    style={{
-                      fontSize: 11.5,
-                      fontFamily: 'monospace',
-                      color: '#facc15',
-                      background: 'rgba(250, 204, 21, 0.06)',
-                      borderRadius: 5,
-                      padding: '2px 6px',
-                    }}
-                  >
-                    支撐: {setup.pullback_line} (+{setup.dist_support_pct}%)
-                  </div>
-                )}
-              </>
-            )}
+            {/* 風報比 */}
+            <div
+              title={rrrGrade.tooltip}
+              style={{
+                fontSize: 11,
+                fontFamily: 'monospace',
+                color: rrrGrade.color,
+                background: rrrGrade.bg,
+                border: `1px solid ${rrrGrade.border}`,
+                borderRadius: 5,
+                padding: '2px 7px',
+                cursor: 'help',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 3,
+              }}
+            >
+              <span>風報比 {rrr}:1 ({rrrGrade.text})</span>
+              <span style={{ fontSize: 9.5, opacity: 0.65 }}>ⓘ</span>
+            </div>
           </div>
 
           {/* 右側：快速動作按鈕 */}
@@ -719,15 +653,12 @@ import {
     const { shortPool, trendPool, savePool } = useMemo(() => {
       const fullList = [...allTwResults, ...allUsResults];
 
-      // 1. 短線快打: 個股符合 short_bounce 或支撐 <= 3.5% 且未大跌；ETF (包含槓桿型與核心指數型 0050, 006208, VOO, QQQ 等) 距支撐 <= 3.5%
+      // 1. 短線快打: 個股符合 short_bounce 或支撐 <= 3.5% 且未大跌 (排除 ETF)
       const short = fullList.filter(r => {
+        if (r.isEtf) return false;
         const s = r.setup || {};
         if (s.is_short_bounce) return true;
         if (s.is_pullback_buy && s.dist_support_pct != null && s.dist_support_pct <= 3.5 && (r.changePct == null || r.changePct >= -3.5)) return true;
-        if (r.isEtf) {
-          const isEligibleEtf = ['TQQQ','SOXL','QLD','SSO','UPRO','NVDL','SMH','00631L','00670L','0050','006208','QQQ','VOO','SPY'].includes(r.code);
-          if (isEligibleEtf && s.dist_support_pct != null && s.dist_support_pct <= 3.5 && (r.changePct == null || r.changePct >= -4.0)) return true;
-        }
         return false;
       }).sort((a, b) => {
         const aSb = a.setup?.is_short_bounce ? 1 : 0;
@@ -739,10 +670,9 @@ import {
         return (a.code || '').localeCompare(b.code || '');
       });
 
-      // 2. 波段強勢: RS >= 80 或是指數型龍頭 (0050, 006208, VOO, QQQ 等) 處於多頭架構
+      // 2. 波段強勢: RS >= 80 的強勢多頭主流個股 (排除 ETF)
       const trend = fullList.filter(r => {
-        if (r.isEtf && ['TQQQ','SOXL','UPRO'].includes(r.code)) return false; // 槓桿歸類在短線
-        if (['0050','006208','QQQ','VOO','SPY'].includes(r.code) && (r.setup?.trend_template || (r.setup?.dist_support_pct != null && r.setup.dist_support_pct <= 4.0))) return true;
+        if (r.isEtf) return false;
         return (r.rs_rating >= 80) || (r.setup?.trend_template && r.setup?.is_pullback_buy);
       }).sort((a, b) => {
         const rsDiff = (b.rs_rating || 0) - (a.rs_rating || 0);
@@ -750,25 +680,11 @@ import {
         return (a.code || '').localeCompare(b.code || '');
       });
 
-      // 3. ETF 存股: 高股息與優質核心市值型 ETF (排除正2/正3槓桿型)
-      const save = fullList.filter(r => {
-        if (!r.isEtf) return false;
-        if (['TQQQ','SOXL','QLD','SSO','UPRO','NVDL','00631L','00670L'].includes(r.code)) return false;
-        return true;
-      }).sort((a, b) => {
-        const aCheap = (a.setup?.dist_support_pct != null && a.setup.dist_support_pct <= 2.2) ? 1 : 0;
-        const bCheap = (b.setup?.dist_support_pct != null && b.setup.dist_support_pct <= 2.2) ? 1 : 0;
-        if (bCheap !== aCheap) return bCheap - aCheap;
-        const yDiff = (b.dividend?.yield_pct || 0) - (a.dividend?.yield_pct || 0);
-        if (Math.abs(yDiff) > 0.001) return yDiff;
-        return (a.code || '').localeCompare(b.code || '');
-      });
-
-      return { shortPool: short, trendPool: trend, savePool: save };
+      return { shortPool: short, trendPool: trend };
     }, [allTwResults, allUsResults]);
 
     // 當前選取策略池
-    const activePool = strategy === 'short' ? shortPool : strategy === 'trend' ? trendPool : savePool;
+    const activePool = strategy === 'short' ? shortPool : trendPool;
 
     // 市場過濾
     const displayedResults = useMemo(() => {
@@ -781,22 +697,19 @@ import {
     const countShortUs = shortPool.filter(r => !r.isTw).length;
     const countTrendTw = trendPool.filter(r => r.isTw).length;
     const countTrendUs = trendPool.filter(r => !r.isTw).length;
-    const countSaveTw  = savePool.filter(r => r.isTw).length;
-    const countSaveUs  = savePool.filter(r => !r.isTw).length;
 
-    const currentTwCount = strategy === 'short' ? countShortTw : strategy === 'trend' ? countTrendTw : countSaveTw;
-    const currentUsCount = strategy === 'short' ? countShortUs : strategy === 'trend' ? countTrendUs : countSaveUs;
+    const currentTwCount = strategy === 'short' ? countShortTw : countTrendTw;
+    const currentUsCount = strategy === 'short' ? countShortUs : countTrendUs;
     const currentAllCount = currentTwCount + currentUsCount;
 
     const isFirstLoading = (tw.loading || us.loading) && !tw.data && !us.data;
     const isLoading = (tw.loading || us.loading) && displayedResults.length === 0;
     const scanDate = fmtDate(tw.data?.scanned_at || us.data?.scanned_at);
 
-    // 策略按鈕選項
+    // 策略按鈕選項 (純個股兩大策略)
     const STRATEGY_BUTTONS = [
       { key: 'short',    icon: '⚡', title: '短線快打', count: isFirstLoading ? '…' : shortPool.length, desc: '1~2天高勝率起漲' },
       { key: 'trend',    icon: '🌊', title: '波段強勢', count: isFirstLoading ? '…' : trendPool.length, desc: 'RS頂尖動能主流' },
-      { key: 'etf_save', icon: '💰', title: 'ETF 存股', count: isFirstLoading ? '…' : savePool.length, desc: '高息穩健長期累積' },
     ];
 
     const MARKET_BUTTONS = [
@@ -812,7 +725,7 @@ import {
           className="strategy-pills-grid"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
+            gridTemplateColumns: 'repeat(2, 1fr)',
             gap: 10,
             marginBottom: 16,
           }}
