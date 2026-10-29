@@ -101,8 +101,10 @@ import {
     const semaData = item.sema_data || item;
     const div = item.dividend || {};
 
-    const freqStr = div.freq || '季配';
-    const monthsStr = div.months ? (freqStr === '週配' ? '每週五發薪' : div.months.join('/') + '月') : (freqStr === '月配' ? '每月配息' : (freqStr === '週配' ? '每週五發薪' : ''));
+    const divHistoryCount = divHistory?.length || 0;
+    const detectedFreq = divHistoryCount >= 40 ? '週配' : divHistoryCount >= 10 ? '月配' : divHistoryCount >= 3 ? '季配' : null;
+    const freqStr = detectedFreq || div.freq || '季配';
+    const monthsStr = div.months ? (freqStr === '週配' ? '每週發薪' : div.months.join('/') + '月') : (freqStr === '月配' ? '每月配息' : (freqStr === '週配' ? '每週發薪' : ''));
     const yieldVal = div.yield_pct;
 
     // 配息頻率顏色

@@ -18,7 +18,7 @@ export const CORE_US_ETFS_DEF = [
   { code: 'QDTE', name: 'Roundhill 納指100 0DTE 週配息 ETF', category: 'dividend', tier: 'core', rs_rating: 75, dividend: { yield_pct: 26.5, freq: '週配', months: [1,2,3,4,5,6,7,8,9,10,11,12], fill_rate: '每週五發薪' }, desc: '每日賣納指100當日到期買權 · ~26%科技高配息週配' },
   { code: 'VYM',  name: 'Vanguard 高股利收益 ETF', category: 'dividend', tier: 'core', rs_rating: 40, dividend: { yield_pct: 3.0, freq: '季配', months: [3, 6, 9, 12] }, desc: '老牌穩健高息 · 涵蓋全美優質高息企業' },
   { code: 'DGRO', name: 'iShares 核心股息成長 ETF', category: 'dividend', tier: 'core', rs_rating: 48, dividend: { yield_pct: 2.4, freq: '季配', months: [3, 6, 9, 12] }, desc: '連續配息增長公司 · 股息成長典範' },
-  { code: 'MSTY', name: 'YieldMax MSTR 選擇權高收益 ETF', category: 'dividend', tier: 'dynamic', rs_rating: 68, dividend: { yield_pct: 65.0, freq: '月配', months: [1,2,3,4,5,6,7,8,9,10,11,12], fill_rate: '高額月配' }, desc: '微策略比特幣持倉掩護買權 · 超高現金流衛星配置' },
+  { code: 'MSTY', name: 'YieldMax MSTR 選擇權高收益 ETF', category: 'dividend', tier: 'dynamic', rs_rating: 68, dividend: { yield_pct: 65.0, freq: '週配', fill_rate: '每週四發薪 (年52次)' }, desc: '微策略比特幣持倉掩護買權 · 超高現金流週配衛星配置' },
   // 債券防禦型 (含短債資金停泊)
   { code: 'SGOV', name: 'iShares 0-3月短期美債 ETF', category: 'bond', tier: 'core', rs_rating: 40, dividend: { yield_pct: 5.1, freq: '月配', months: [1,2,3,4,5,6,7,8,9,10,11,12], fill_rate: '月月領息' }, desc: '超短期美國國庫券 · ~5.1%穩健息率 · 資金極致避風港' },
   { code: 'TLT',  name: 'iShares 20年期以上美國公債 ETF', category: 'bond', tier: 'core', rs_rating: 35, dividend: { yield_pct: 4.6, freq: '月配', months: [1,2,3,4,5,6,7,8,9,10,11,12] }, desc: '長天期美債 · 股災防禦與降息受惠' },
