@@ -874,53 +874,88 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     // 市場過濾: 'all' | 'tw' | 'us'
     const [market, setMarket] = useState('all');
 
-    const [tw, setTw] = useState({ data: null, loading: false, error: null });
-    const [us, setUs] = useState({ data: null, loading: false, error: null });
-    const [liveEtfs, setLiveEtfs] = useState({});
+    const [tw, setTw] = useState(() => {
+      try {
+        const cached = sessionStorage.getItem('screener_tw_data');
+        return { data: cached ? JSON.parse(cached) : null, loading: !cached, error: null };
+      } catch (_) {
+        return { data: null, loading: true, error: null };
+      }
+    });
+
+    const [us, setUs] = useState(() => {
+      try {
+        const cached = sessionStorage.getItem('screener_us_data');
+        return { data: cached ? JSON.parse(cached) : null, loading: !cached, error: null };
+      } catch (_) {
+        return { data: null, loading: true, error: null };
+      }
+    });
+
+    const [liveEtfs, setLiveEtfs] = useState(() => {
+      try {
+        const cached = sessionStorage.getItem('screener_live_etfs');
+        return cached ? JSON.parse(cached) : {};
+      } catch (_) {
+        return {};
+      }
+    });
+
     const [liveLoading, setLiveLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
     // 載入資料
-    const loadMarket = useCallback(async (mkt) => {
+    const loadMarket = useCallback(async (mkt, force = false) => {
       const setter = mkt === 'tw' ? setTw : setUs;
       setter(s => ({ ...s, loading: true, error: null }));
       try {
-        const res = await fetch(`${WORKER_URL}/screener?market=${mkt}`);
+        const url = `${WORKER_URL}/screener?market=${mkt}${force ? '&force=1' : ''}`;
+        const res = await fetch(url);
         const json = await res.json();
         if (json.error) throw new Error(json.error);
+        try {
+          sessionStorage.setItem(`screener_${mkt}_data`, JSON.stringify(json));
+        } catch (_) {}
         setter({ data: json, loading: false, error: null });
       } catch (e) {
         setter(s => ({ ...s, loading: false, error: e.message }));
       }
     }, []);
 
-    const loadAll = useCallback(() => {
-      loadMarket('tw');
-      loadMarket('us');
+    const loadAll = useCallback((force = false) => {
+      loadMarket('tw', force);
+      loadMarket('us', force);
     }, [loadMarket]);
 
     useEffect(() => {
       loadAll();
-      window.screenerLoad = loadAll;
+      window.screenerLoad = () => loadAll(true);
       return () => { window.screenerLoad = null; };
     }, [loadAll]);
 
-    // 即時補充核心 ETF 與權值股的 SEMA 批次資料
+    // 即時補充核心 ETF 與權值股的 SEMA 批次資料（市場資料到齊後才進行比對補漏）
     useEffect(() => {
-      const currentUsCodes = (us.data?.results || []).map(r => r.code);
-      const currentTwCodes = (tw.data?.results || []).map(r => r.code);
+      if (!tw.data || !us.data) return;
+
+      const currentUsCodes = new Set((us.data?.results || []).map(r => r.code));
+      const currentTwCodes = new Set((tw.data?.results || []).map(r => r.code));
 
       const missingUs = [
-        ...CORE_US_ETFS_DEF.filter(x => !currentUsCodes.includes(x.code)).map(x => x.code),
-        ...BENCHMARK_US_STOCKS_DEF.filter(x => !currentUsCodes.includes(x.code)).map(x => x.code),
+        ...CORE_US_ETFS_DEF.filter(x => !currentUsCodes.has(x.code)).map(x => x.code),
+        ...BENCHMARK_US_STOCKS_DEF.filter(x => !currentUsCodes.has(x.code)).map(x => x.code),
       ];
       const missingTw = [
-        ...CORE_TW_ETFS_DEF.filter(x => !currentTwCodes.includes(x.code)).map(x => `${x.code}.TW`),
-        ...BENCHMARK_TW_STOCKS_DEF.filter(x => !currentTwCodes.includes(x.code)).map(x => `${x.code}.TW`),
+        ...CORE_TW_ETFS_DEF.filter(x => !currentTwCodes.has(x.code)).map(x => `${x.code}.TW`),
+        ...BENCHMARK_TW_STOCKS_DEF.filter(x => !currentTwCodes.has(x.code)).map(x => `${x.code}.TW`),
       ];
-      const needed = [...missingUs, ...missingTw];
 
-      if (needed.length > 0 && Object.keys(liveEtfs).length === 0 && !liveLoading) {
+      // 只挑選 liveEtfs 還沒有的 symbol
+      const needed = [...missingUs, ...missingTw].filter(sym => {
+        const raw = sym.replace(/\.TW$/i, '');
+        return !liveEtfs[sym] && !liveEtfs[raw];
+      });
+
+      if (needed.length > 0 && !liveLoading) {
         setLiveLoading(true);
         const CHUNK = 10;
         const chunks = [];
@@ -934,15 +969,19 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
           )
         ).then(resList => {
           const merged = Object.assign({}, ...resList);
-          setLiveEtfs(merged);
+          setLiveEtfs(prev => {
+            const next = { ...prev, ...merged };
+            try { sessionStorage.setItem('screener_live_etfs', JSON.stringify(next)); } catch (_) {}
+            return next;
+          });
           setLiveLoading(false);
         }).catch(() => setLiveLoading(false));
       }
-    }, [us.data, tw.data]);
+    }, [us.data, tw.data, liveEtfs, liveLoading]);
 
     const onRefresh = async () => {
       setRefreshing(true);
-      await Promise.all([loadMarket('tw'), loadMarket('us')]);
+      await Promise.all([loadMarket('tw', true), loadMarket('us', true)]);
       setRefreshing(false);
     };
 
@@ -1014,7 +1053,7 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
       return list.map(r => normalizeResult(r, usRegime));
     }, [us.data, liveEtfs, usRegime]);
 
-    // 依策略分類池子
+    // 依策略分類池子（添加穩定排序鍵，防止次要排序打亂重排）
     const { shortPool, trendPool, savePool } = useMemo(() => {
       const fullList = [...allTwResults, ...allUsResults];
 
@@ -1032,7 +1071,10 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
         const aSb = a.setup?.is_short_bounce ? 1 : 0;
         const bSb = b.setup?.is_short_bounce ? 1 : 0;
         if (bSb !== aSb) return bSb - aSb;
-        return (a.setup?.dist_support_pct || 999) - (b.setup?.dist_support_pct || 999);
+        const aDist = a.setup?.dist_support_pct ?? 999;
+        const bDist = b.setup?.dist_support_pct ?? 999;
+        if (Math.abs(aDist - bDist) > 0.001) return aDist - bDist;
+        return (a.code || '').localeCompare(b.code || '');
       });
 
       // 2. 波段強勢: RS >= 80 或是指數型龍頭 (0050, 006208, VOO, QQQ 等) 處於多頭架構
@@ -1040,7 +1082,11 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
         if (r.isEtf && ['TQQQ','SOXL','UPRO'].includes(r.code)) return false; // 槓桿歸類在短線
         if (['0050','006208','QQQ','VOO','SPY'].includes(r.code) && (r.setup?.trend_template || (r.setup?.dist_support_pct != null && r.setup.dist_support_pct <= 4.0))) return true;
         return (r.rs_rating >= 80) || (r.setup?.trend_template && r.setup?.is_pullback_buy);
-      }).sort((a, b) => (b.rs_rating || 0) - (a.rs_rating || 0));
+      }).sort((a, b) => {
+        const rsDiff = (b.rs_rating || 0) - (a.rs_rating || 0);
+        if (rsDiff !== 0) return rsDiff;
+        return (a.code || '').localeCompare(b.code || '');
+      });
 
       // 3. ETF 存股: 高股息與優質核心市值型 ETF (排除正2/正3槓桿型)
       const save = fullList.filter(r => {
@@ -1051,7 +1097,9 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
         const aCheap = (a.setup?.dist_support_pct != null && a.setup.dist_support_pct <= 2.2) ? 1 : 0;
         const bCheap = (b.setup?.dist_support_pct != null && b.setup.dist_support_pct <= 2.2) ? 1 : 0;
         if (bCheap !== aCheap) return bCheap - aCheap;
-        return (b.dividend?.yield_pct || 0) - (a.dividend?.yield_pct || 0);
+        const yDiff = (b.dividend?.yield_pct || 0) - (a.dividend?.yield_pct || 0);
+        if (Math.abs(yDiff) > 0.001) return yDiff;
+        return (a.code || '').localeCompare(b.code || '');
       });
 
       return { shortPool: short, trendPool: trend, savePool: save };
@@ -1078,20 +1126,21 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     const currentUsCount = strategy === 'short' ? countShortUs : strategy === 'trend' ? countTrendUs : countSaveUs;
     const currentAllCount = currentTwCount + currentUsCount;
 
+    const isFirstLoading = (tw.loading || us.loading) && !tw.data && !us.data;
     const isLoading = (tw.loading || us.loading) && displayedResults.length === 0;
     const scanDate = fmtDate(tw.data?.scanned_at || us.data?.scanned_at);
 
     // 策略按鈕選項
     const STRATEGY_BUTTONS = [
-      { key: 'short',    icon: '⚡', title: '短線快打', count: shortPool.length, desc: '1~2天高勝率起漲' },
-      { key: 'trend',    icon: '🌊', title: '波段強勢', count: trendPool.length, desc: 'RS頂尖動能主流' },
-      { key: 'etf_save', icon: '💰', title: 'ETF 存股', count: savePool.length, desc: '高息穩健長期累積' },
+      { key: 'short',    icon: '⚡', title: '短線快打', count: isFirstLoading ? '…' : shortPool.length, desc: '1~2天高勝率起漲' },
+      { key: 'trend',    icon: '🌊', title: '波段強勢', count: isFirstLoading ? '…' : trendPool.length, desc: 'RS頂尖動能主流' },
+      { key: 'etf_save', icon: '💰', title: 'ETF 存股', count: isFirstLoading ? '…' : savePool.length, desc: '高息穩健長期累積' },
     ];
 
     const MARKET_BUTTONS = [
-      { key: 'all', label: `全部 (${currentAllCount})` },
-      { key: 'tw',  label: `🇹🇼 台股 (${currentTwCount})` },
-      { key: 'us',  label: `🇺🇸 美股 (${currentUsCount})` },
+      { key: 'all', label: isFirstLoading ? '全部 (…)' : `全部 (${currentAllCount})` },
+      { key: 'tw',  label: isFirstLoading ? '🇹🇼 台股 (…)' : `🇹🇼 台股 (${currentTwCount})` },
+      { key: 'us',  label: isFirstLoading ? '🇺🇸 美股 (…)' : `🇺🇸 美股 (${currentUsCount})` },
     ];
 
     return (
