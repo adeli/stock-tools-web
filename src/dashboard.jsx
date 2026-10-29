@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { isReportCurrent, getChangeColor } from './utils.js';
 import { r2, computeGaugeMessages, WaterGauge, PriceRail } from './sema.jsx';
 import { WORKER_URL as _API } from './config.js';
+import { evaluateStockUnified, evaluateRrrGrade } from './stock-evaluator.js';
 
 (function () {
   const { useState, useEffect, useRef, useCallback, useMemo } = React;
@@ -34,242 +35,8 @@ import { WORKER_URL as _API } from './config.js';
     { code: 'TQQQ',    label: 'TQQQ 納指正3' },
   ];
 
-  // ── 五維評估與作戰計畫計算器 (與選股頁完全一致) ──────────────────────────────────
-  function evaluateStock(data, regime) {
-    if (!data) return null;
-    const price = data.price || 0;
-    const code = data.code || '';
-    const isTw = data.isTw ?? (code.endsWith('.TW') || /^\d{4,6}$/.test(code));
-    const isEtf = data.isEtf ?? (/^(00\d{2,4}[LA]?)$/.test(code.replace(/\.TW$/i, '')) || ['TQQQ','SOXL','QLD','SSO','UPRO','NVDL','SMH','QQQ','SCHD','JEPI','JEPQ','VYM','DGRO','VOO'].includes(code));
-    const allSemas = data.allSemas || data.semas || [];
-    const msgs = computeGaugeMessages(data);
-
-    // 支撐與距離
-    const supports = allSemas.filter(s => s.value != null && s.value < price);
-    const closestSupport = supports.length > 0
-      ? supports.reduce((max, s) => (s.value > max.value ? s : max), supports[0])
-      : null;
-    const distS = closestSupport ? Number(((price - closestSupport.value) / price * 100).toFixed(1)) : null;
-    const pLine = closestSupport?.label || 'SEMA2';
-
-    // 壓力與距離
-    const resists = allSemas.filter(s => s.value != null && s.value >= price);
-    const closestResist = resists.length > 0
-      ? resists.reduce((min, s) => (s.value < min.value ? s : min), resists[0])
-      : null;
-    const dR = closestResist ? Number(((closestResist.value - price) / price * 100).toFixed(1)) : (msgs?.dR ?? 999);
-
-    // 均線結構
-    const s5 = allSemas.find(s => s.label === 'SEMA5');
-    const s8 = allSemas.find(s => s.label === 'SEMA8');
-    const trendTemplate = Boolean(s5 && s8 && price > s5.value && s5.value > s8.value);
-    const biasMa50 = s5 ? Number(((price - s5.value) / s5.value * 100).toFixed(1)) : 0;
-    const isExtended = biasMa50 >= 25.0;
-
-    const ma200Dist = s8 ? Number(((price - s8.value) / s8.value * 100).toFixed(1)) : null;
-
-    const vol45 = data.vol45Ratio || 1.0;
-    const wave = data.waveState;
-    const closePos = data.closePos != null ? data.closePos : 0.5;
-
-    // 起漲與回測買點條件
-    const isSb = Boolean(
-      !isExtended &&
-      ['SEMA1', 'SEMA2', 'SEMA3'].includes(pLine) &&
-      distS != null && distS <= 3.0 &&
-      (data.changePct == null || data.changePct >= -3.5) &&
-      (vol45 <= 0.85 || ['C', 'D'].includes(wave)) &&
-      closePos >= 0.50
-    );
-
-    const isPb = Boolean(
-      !isExtended &&
-      ['SEMA1', 'SEMA2', 'SEMA3', 'SEMA4', 'SEMA5', 'SEMA6'].includes(pLine) &&
-      distS != null && distS <= 3.5 &&
-      (data.changePct == null || data.changePct >= -4.0)
-    );
-
-    // ── 實戰作戰計畫 (Trade Plan) ──
-    const buyMin = Number((price * 0.992).toFixed(price >= 50 ? 1 : 2));
-    const buyMax = Number((price * 1.005).toFixed(price >= 50 ? 1 : 2));
-
-    const stopLoss = closestSupport
-      ? Number((closestSupport.value * 0.985).toFixed(price >= 50 ? 1 : 2))
-      : Number((price * 0.978).toFixed(price >= 50 ? 1 : 2));
-    const stopPct = Number(((stopLoss - price) / (price || 1) * 100).toFixed(1));
-
-    let targetPrice;
-    if (data.prevHigh && data.prevHigh.price > price) {
-      targetPrice = Number((data.prevHigh.price * 0.99).toFixed(price >= 50 ? 1 : 2));
-    } else if (isSb) {
-      targetPrice = Number((price * 1.055).toFixed(price >= 50 ? 1 : 2));
-    } else if (isPb) {
-      targetPrice = Number((price * 1.065).toFixed(price >= 50 ? 1 : 2));
-    } else {
-      targetPrice = Number((price * 1.045).toFixed(price >= 50 ? 1 : 2));
-    }
-    const targetPct = Number(((targetPrice - price) / (price || 1) * 100).toFixed(1));
-    const rrr = Number(Math.abs(targetPct / (stopPct || -1.5)).toFixed(1));
-
-    // ── 決策徽章與一句話核心理由 ──
-    let badge = { text: '🟢 建議買進', color: '#4ade80', bg: 'rgba(74, 222, 128, 0.12)', border: 'rgba(74, 222, 128, 0.4)' };
-    let rationale = '';
-
-    if (data.belowSema3) {
-      badge = { text: '🚨 跌破支撐', color: '#f87171', bg: 'rgba(248, 113, 113, 0.14)', border: 'rgba(248, 113, 113, 0.35)' };
-      rationale = `🚨 收盤已跌破支撐3 · 短均下彎轉壓，反彈無力，建議嚴守停損或反彈減碼`;
-    } else if (data.clearOut || (msgs?.topMsg && msgs.topMsg.startsWith('⚠'))) {
-      badge = { text: '⚠ 出場訊號', color: '#f87171', bg: 'rgba(248, 113, 113, 0.14)', border: 'rgba(248, 113, 113, 0.35)' };
-      rationale = `⚠ 爆天量或高檔急漲乖離過大 · 恐有轉折拉回風險，建議分批停利`;
-    } else if (isEtf) {
-      if (ma200Dist != null && ma200Dist < 0) {
-        badge = { text: '⚠️ 破年線觀望', color: '#f87171', bg: 'rgba(248, 113, 113, 0.15)', border: 'rgba(248, 113, 113, 0.4)' };
-        rationale = `⚠️ 股價跌破年線 (200MA ${ma200Dist}%) · 長期結構轉弱，建議暫停定期定額`;
-      } else if ((distS != null && distS <= 2.2) || biasMa50 < 3.0) {
-        badge = { text: '💎 便宜加碼點', color: '#4ade80', bg: 'rgba(74, 222, 128, 0.15)', border: 'rgba(74, 222, 128, 0.4)' };
-        rationale = `💰 均線拉回特價甜甜價 (距年線 +${ma200Dist}%) · 建議把握加碼機會`;
-      } else if (isExtended) {
-        badge = { text: '⏸ 偏高暫停加碼', color: '#fb923c', bg: 'rgba(251, 146, 60, 0.15)', border: 'rgba(251, 146, 60, 0.4)' };
-        rationale = `⏸ 季線乖離過大 (+${biasMa50}%) · 追高風險高，維持定期定額勿大筆追高`;
-      } else {
-        badge = { text: '✓ 定期定額 (合理)', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.15)', border: 'rgba(56, 189, 248, 0.4)' };
-        rationale = `💰 站在年線之上 (+${ma200Dist}%) · 趨勢穩健向上，維持紀律定期定額`;
-      }
-    } else if (isSb) {
-      badge = { text: '🔥 低點起漲', color: '#fb7185', bg: 'rgba(244, 63, 94, 0.15)', border: 'rgba(244, 63, 94, 0.45)' };
-      rationale = `🔥 回測 ${pLine} 支撐守穩 (+${distS}%) · 45日量比 ${vol45}× 極致量縮 · 尾盤買盤承接`;
-    } else if (isPb) {
-      badge = { text: '🎯 回測買點', color: '#4ade80', bg: 'rgba(74, 222, 128, 0.15)', border: 'rgba(74, 222, 128, 0.4)' };
-      rationale = `🎯 回測 ${pLine} 支撐守穩 (+${distS}%) · 均線多頭排列架構穩健`;
-    } else if (data.isNewHigh60 || data.seaWideOpen) {
-      badge = { text: '🌊 創高多頭', color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.12)', border: 'rgba(167, 139, 250, 0.35)' };
-      rationale = `🌊 創近期新高或上方無均線壓力 · 多方順風推進，留意漲多乖離`;
-    } else if (dR != null && dR < 4.0) {
-      badge = { text: '⚠️ 逼近壓力', color: '#facc15', bg: 'rgba(250, 204, 21, 0.12)', border: 'rgba(250, 204, 21, 0.35)' };
-      rationale = `⚠️ 距上方壓力僅剩 +${dR}% · 短線空間受限，建議分批停利`;
-    } else {
-      badge = { text: '⚪ 站穩多頭', color: '#60a5fa', bg: 'rgba(96, 165, 250, 0.12)', border: 'rgba(96, 165, 250, 0.35)' };
-      rationale = `🌊 股價站穩短均多頭排列 · 距離下方支撐 +${distS ?? 2.0}% · 順勢續抱`;
-    }
-
-    // ── 五維度評分 ──
-    const mScore = 88;
-    const tScore = isSb ? 95 : isPb ? 88 : data.belowSema3 ? 45 : 78;
-    const cScore = isTw ? 82 : 85;
-    const fScore = isEtf ? 84 : 78;
-    const rScore = rrr >= 2.5 ? 94 : rrr >= 1.8 ? 82 : (isEtf || trendTemplate || isSb || isPb ? 76 : 60);
-
-    const rrrSummary = rrr >= 2.5
-      ? `風報比 ${rrr}:1【短波極佳】· 承擔 ${stopPct}% 搏取 +${targetPct}%`
-      : rrr >= 1.8
-      ? `風報比 ${rrr}:1【合理試單】· 承擔 ${stopPct}% 搏取 +${targetPct}%`
-      : data.belowSema3 || (ma200Dist != null && ma200Dist < 0)
-      ? `風報比 ${rrr}:1【破線偏弱】· 跌破重要支撐，不宜貿然抄底`
-      : isExtended
-      ? `風報比 ${rrr}:1【乖離過大】· 脫離均線過遠，耐心等拉回`
-      : (isEtf || trendTemplate || isSb || isPb)
-      ? `風報比 ${rrr}:1【長線布局】· 中長線多頭向上，短線遇壓適合分批低接`
-      : `風報比 ${rrr}:1【空間受限】· 空間較窄，等待均線守穩再進場`;
-
-    const tLight = tScore >= 80 ? 'GREEN' : tScore >= 60 ? 'YELLOW' : 'RED';
-    const rLight = rScore >= 80 ? 'GREEN' : rScore >= 70 ? 'YELLOW' : 'RED';
-    const lights = ['GREEN', tLight, 'GREEN', 'GREEN', rLight];
-    const greenCount = lights.filter(l => l === 'GREEN').length;
-    const totalScore = Math.round(mScore * 0.2 + tScore * 0.25 + cScore * 0.2 + fScore * 0.15 + rScore * 0.2);
-
-    const dimensions = {
-      market:      { name: '大盤環境', score: mScore, light: 'GREEN', summary: '大盤維持多頭格局 · 順風交易環境' },
-      technical:   { name: '價量型態', score: tScore, light: tLight, summary: rationale },
-      chips:       { name: '法人籌碼', score: cScore, light: 'GREEN', summary: isTw ? '法人籌碼維持常態偏多' : '機構持股結構穩固' },
-      fundamental: { name: '基本動能', score: fScore, light: 'GREEN', summary: isEtf ? '指數型商品 · 分散營運風險' : '營運成長與財務結構穩健' },
-      risk_reward: { name: '風報比精算', score: rScore, light: rLight, summary: rrrSummary },
-    };
-
-    return {
-      isTw,
-      isEtf,
-      badge,
-      rationale,
-      pLine,
-      distS,
-      dR,
-      ma200Dist,
-      isExtended,
-      isSb,
-      isPb,
-      trendTemplate,
-      greenCount,
-      totalScore,
-      tradePlan: {
-        buyZone: [buyMin, buyMax],
-        stopLoss,
-        stopPct,
-        targetPrice,
-        targetPct,
-        rrr,
-      },
-      dimensions,
-    };
-  }
-
-  // ── 智能多維度風報比評級 (避免優質成長股/ETF被誤標為勿追) ──
-  function evaluateRrrGrade(rrr, { isEtf, ma200Dist, belowSupport, isExtended, isSb, isPb, trendTemplate }) {
-    const r = Number(rrr || 2.0);
-    if (r >= 2.5) {
-      return {
-        text: '短波極佳',
-        color: '#4ade80',
-        bg: 'rgba(74, 222, 128, 0.08)',
-        border: 'rgba(74, 222, 128, 0.25)',
-        tooltip: `風報比 ${r}:1【短波極佳】\n• 冒 1 元風險搏 ${r} 元利潤，勝率 28% 即可保本，高期望值首選。\n• 停損僅 -1.5%~-2%，向上波段目標明確。`,
-      };
-    }
-    if (r >= 1.8) {
-      return {
-        text: '合理試單',
-        color: '#38bdf8',
-        bg: 'rgba(56, 189, 248, 0.08)',
-        border: 'rgba(56, 189, 248, 0.25)',
-        tooltip: `風報比 ${r}:1【合理試單】\n• 冒 1 元風險搏 ${r} 元利潤，勝率 35% 即保本。\n• 符合專業機構盈虧比門檻，可分批布局。`,
-      };
-    }
-    // RRR < 1.8: 區分「走下坡破線」vs「乖離過大」vs「優質股/ETF長線整理買點」
-    if (belowSupport || (ma200Dist != null && ma200Dist < 0)) {
-      return {
-        text: '破線偏弱',
-        color: '#f87171',
-        bg: 'rgba(248, 113, 113, 0.08)',
-        border: 'rgba(248, 113, 113, 0.25)',
-        tooltip: `風報比 ${r}:1【破線偏弱 · 觀望勿抄底】\n• 股價已跌破重要支撐或年線，處於走下坡或不穩定弱勢結構。\n• 停損風險偏高且反彈動能不明，嚴守紀律不宜貿然抄底。`,
-      };
-    }
-    if (isExtended) {
-      return {
-        text: '乖離過大',
-        color: '#fb923c',
-        bg: 'rgba(251, 146, 60, 0.08)',
-        border: 'rgba(251, 146, 60, 0.25)',
-        tooltip: `風報比 ${r}:1【乖離過大 · 耐心等拉回】\n• 股價脫離均線過遠 (+25%以上)，高檔獲利了結賣壓沉重。\n• 追高盈虧比極差，建議耐心等待回測均線守穩再進場。`,
-      };
-    }
-    const isQuality = isEtf || trendTemplate || isSb || isPb;
-    if (isQuality) {
-      return {
-        text: '長線布局',
-        color: '#a78bfa',
-        bg: 'rgba(167, 139, 250, 0.08)',
-        border: 'rgba(167, 139, 250, 0.25)',
-        tooltip: `風報比 ${r}:1【長線布局 · 遇壓整理】\n• 中長線多頭與基本面體質優良，短線靠近前高或阻力整理，短波盈虧比暫受限。\n• 對中長線或定時定額投資人而言，拉回支撐反而是優質分批低接買點！`,
-      };
-    }
-    return {
-      text: '空間受限',
-      color: '#fbbf24',
-      bg: 'rgba(251, 191, 36, 0.08)',
-      border: 'rgba(251, 191, 36, 0.25)',
-      tooltip: `風報比 ${r}:1【短線空間受限 · 分批低接】\n• 距離上方壓力較近，短波衝刺獲利空間較窄。\n• 建議等待更接近下方支撐線時再行低接。`,
-    };
-  }
+  // ── 統一五維評估與作戰計畫 (由 stock-evaluator.js 統一提供，保證與選股頁 100% 一致) ──
+  const evaluateStock = evaluateStockUnified;
 
   // ── 個股實戰卡片 (StockCard) ────────────────────────────────────────────────
   function StockCard({ sym, name, state, data, onRemove, reports, onGoReport, gaugeW, forceDiagOpen }) {
@@ -284,14 +51,16 @@ import { WORKER_URL as _API } from './config.js';
 
     const ev = useMemo(() => evaluateStock(data), [data]);
     const rrr = ev?.tradePlan?.rrr ?? 2.5;
-    const rrrGrade = evaluateRrrGrade(rrr, {
+    const rrrGrade = ev?.rrrGrade || evaluateRrrGrade(rrr, {
       isEtf: ev?.isEtf,
       ma200Dist: ev?.ma200Dist,
-      belowSupport: data?.belowSema3,
+      belowSupport: ev?.isBroken,
       isExtended: ev?.isExtended,
       isSb: ev?.isSb,
       isPb: ev?.isPb,
       trendTemplate: ev?.trendTemplate,
+      rsRating: ev?.rsRating,
+      epsGrowth: ev?.eps?.growth_pct,
     });
 
     const isTW = sym.toUpperCase().endsWith('.TW');
