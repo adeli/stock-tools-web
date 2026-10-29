@@ -329,6 +329,126 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     );
   }
 
+  function FiveDimCard({ ev }) {
+    const [open, setOpen] = useState(false);
+    if (!ev) return null;
+    const tp = ev.trade_plan;
+    const dims = ev.dimensions || {};
+    const isBuy = ev.verdict === 'BUY';
+    const isWait = ev.verdict === 'WAIT';
+
+    const vColor = isBuy ? '#4ade80' : isWait ? '#facc15' : '#f87171';
+    const vBg    = isBuy ? 'rgba(74,222,128,0.12)' : isWait ? 'rgba(250,204,21,0.12)' : 'rgba(248,113,113,0.12)';
+    const vBdr   = isBuy ? 'rgba(74,222,128,0.35)' : isWait ? 'rgba(250,204,21,0.35)' : 'rgba(248,113,113,0.35)';
+
+    const lightColor = l => l === 'GREEN' ? '#4ade80' : l === 'YELLOW' ? '#facc15' : '#f87171';
+
+    return (
+      <div style={{
+        background: 'linear-gradient(180deg, rgba(30,41,59,0.7) 0%, rgba(15,23,42,0.85) 100%)',
+        border: '1px solid rgba(96,165,250,0.35)',
+        borderRadius: 10,
+        padding: '12px 14px',
+        marginBottom: 12,
+      }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:8, marginBottom:10 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+            <span style={{ fontSize:16 }}>🏆</span>
+            <span style={{ fontSize:13, fontWeight:800, color:'#93c5fd', letterSpacing:'0.05em' }}>
+              五維實戰決策戰報
+            </span>
+          </div>
+          <div style={{
+            fontSize:11, fontWeight:800, color:vColor, background:vBg, border:`1px solid ${vBdr}`,
+            borderRadius:20, padding:'2px 10px', display:'flex', alignItems:'center', gap:5,
+          }}>
+            <span>●</span>
+            <span>{ev.verdict_desc}</span>
+          </div>
+        </div>
+
+        {tp && (
+          <div style={{
+            display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(130px, 1fr))',
+            gap:8, marginBottom:10,
+          }}>
+            <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:6, padding:'8px 10px', textAlign:'center' }}>
+              <div style={{ fontSize:11, color:'#94a3b8', marginBottom:2 }}>建議進場區間</div>
+              <div style={{ fontSize:13, fontWeight:700, fontFamily:'monospace', color:'#f8fafc' }}>
+                ${tp.buy_zone ? `${tp.buy_zone[0]} ~ ${tp.buy_zone[1]}` : '—'}
+              </div>
+            </div>
+            <div style={{ background:'rgba(239,68,68,0.05)', border:'1px solid rgba(239,68,68,0.22)', borderRadius:6, padding:'8px 10px', textAlign:'center' }}>
+              <div style={{ fontSize:11, color:'#fca5a5', marginBottom:2 }}>防守停損線</div>
+              <div style={{ fontSize:13, fontWeight:700, fontFamily:'monospace', color:'#f87171' }}>
+                ${tp.stop_loss} ({tp.stop_pct}%)
+              </div>
+            </div>
+            <div style={{ background:'rgba(34,197,94,0.05)', border:'1px solid rgba(34,197,94,0.22)', borderRadius:6, padding:'8px 10px', textAlign:'center' }}>
+              <div style={{ fontSize:11, color:'#86efac', marginBottom:2 }}>短線目標價</div>
+              <div style={{ fontSize:13, fontWeight:700, fontFamily:'monospace', color:'#4ade80' }}>
+                ${tp.target_price} (+{tp.target_pct}%)
+              </div>
+            </div>
+            <div style={{ background:'rgba(96,165,250,0.05)', border:'1px solid rgba(96,165,250,0.22)', borderRadius:6, padding:'8px 10px', textAlign:'center' }}>
+              <div style={{ fontSize:11, color:'#93c5fd', marginBottom:2 }}>風報比 / 建議配置</div>
+              <div style={{ fontSize:13, fontWeight:700, fontFamily:'monospace', color:'#38bdf8' }}>
+                {tp.rrr}:1 · 倉位 {tp.suggested_position_pct}%
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:6, paddingTop:4, borderTop:'1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ display:'flex', alignItems:'center', flexWrap:'wrap', gap:6 }}>
+            {Object.entries(dims).map(([k, d]) => (
+              <span key={k} style={{
+                fontSize:10.5, fontWeight:700,
+                color: lightColor(d.light),
+                background: 'rgba(255,255,255,0.04)',
+                border: `1px solid ${lightColor(d.light)}33`,
+                borderRadius:4, padding:'2px 6px',
+                display:'inline-flex', alignItems:'center', gap:3,
+              }}>
+                <span style={{ fontSize:8 }}>●</span>
+                <span>{d.name} {d.score}分</span>
+              </span>
+            ))}
+          </div>
+
+          <button onClick={() => setOpen(!open)} style={{
+            fontSize:11, color:'#93c5fd', background:'none', border:'none',
+            cursor:'pointer', padding:'2px 6px', fontWeight:600,
+          }}>
+            {open ? '收合診斷 ▲' : '五維深度診斷 ▾'}
+          </button>
+        </div>
+
+        {open && (
+          <div style={{ marginTop:10, paddingTop:10, borderTop:'1px dashed rgba(255,255,255,0.08)', display:'flex', flexDirection:'column', gap:6 }}>
+            {Object.entries(dims).map(([k, d]) => (
+              <div key={k} style={{
+                display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8,
+                fontSize:12, padding:'5px 8px', borderRadius:5, background:'rgba(255,255,255,0.02)',
+              }}>
+                <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+                  <span style={{ color: lightColor(d.light), fontSize:9 }}>●</span>
+                  <span style={{ fontWeight:700, color:'#e2e8f0', minWidth:60 }}>{d.name}</span>
+                  <span style={{ fontSize:10.5, fontFamily:'monospace', color:lightColor(d.light), fontWeight:700 }}>
+                    {d.score}分
+                  </span>
+                </div>
+                <div style={{ color:'#94a3b8', fontSize:11.5, textAlign:'right' }}>
+                  {d.summary}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   function RowDetail({ r, onFullView }) {
     const sd     = r.sema_data || {};
     const price  = sd.price ?? r.price;
@@ -342,6 +462,8 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     return (
       <div style={{ padding:'14px 16px 16px', background:'rgba(255,255,255,0.035)',
         borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
+        <FiveDimCard ev={r.eval} />
+
         <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:12 }}>
           <Levels title="壓力" arr={resist}  price={price} dir="up" />
           <Levels title="支撐" arr={support} price={price} dir="down" />
@@ -592,7 +714,131 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     );
   }
 
-  function normalizeResult(r) {
+  function buildEval(r, setup, chips, regime) {
+    if (r.eval) return r.eval;
+    const price = r.price || r.sema_data?.price || 0;
+    const isTw = (r.code && /^\d+/.test(r.code)) || r.code?.endsWith('.TW') || r.code?.endsWith('.TWO');
+    const isEtf = r.source === 'etf';
+    const rs = r.rs_rating || 50;
+
+    // 1. 大盤
+    const regLevel = regime?.level || 'BULL_STRONG';
+    const regDiff = regime?.diff_ma50_pct != null ? regime.diff_ma50_pct : 2.5;
+    let mScore = 92, mLight = 'GREEN', mDesc = `大盤強勢多頭 (站穩季線 ${regDiff >= 0 ? '+' : ''}${regDiff}%) · 順風環境適合積極操作`;
+    if (regLevel === 'BULL_MILD') {
+      mScore = 82; mLight = 'GREEN'; mDesc = `大盤溫和偏多 · 個股多頭排列順勢推進`;
+    } else if (regLevel === 'CHOPPY') {
+      mScore = 62; mLight = 'YELLOW'; mDesc = `大盤震盪盤整 · 宜縮小部位並嚴格防守`;
+    } else if (regLevel === 'BEAR') {
+      mScore = 38; mLight = 'RED'; mDesc = `大盤空頭破線 · 系統性風險高，建議觀望`;
+    }
+
+    // 2. 價量
+    const pLine = setup?.pullback_line || 'SEMA2';
+    const distS = setup?.dist_support_pct != null ? setup.dist_support_pct : 2.0;
+    const vol45 = r.sema_data?.vol45Ratio || 1.0;
+    let tScore = 75, tLight = 'GREEN', tDesc = `多頭排列架構 · 股價站穩關鍵短均`;
+    if (setup?.is_short_bounce) {
+      tScore = 95; tLight = 'GREEN'; tDesc = `回測 ${pLine} 守穩 (+${distS}%) · 45日量比 ${vol45}× 極致量縮 · 尾盤買盤承接`;
+    } else if (setup?.is_pullback_buy) {
+      tScore = 88; tLight = 'GREEN'; tDesc = `回測 ${pLine} 支撐 (+${distS}%) · 均線多頭排列穩健`;
+    } else if (setup?.is_extended) {
+      tScore = 55; tLight = 'YELLOW'; tDesc = `正乖離偏大 (+${setup?.bias_ma50}%) · 追高風險高，等待拉回`;
+    }
+
+    // 3. 籌碼
+    let cScore = 70, cLight = 'YELLOW', cDesc = `籌碼平穩維持常態`;
+    if (isTw && !isEtf) {
+      const itDays = chips?.it_consec_days || 0;
+      const itLots = chips?.it_net_lots_5d || 0;
+      if (itDays >= 5 || chips?.is_it_hot) {
+        cScore = 94; cLight = 'GREEN'; cDesc = `投信連買 ${itDays} 天 (5日累計 ${itLots.toLocaleString()} 張) · 主力大戶積極認養`;
+      } else if (itDays >= 3) {
+        cScore = 85; cLight = 'GREEN'; cDesc = `投信連買 ${itDays} 天 · 籌碼沉澱集中，法人穩步建倉`;
+      } else if (itDays >= 1) {
+        cScore = 75; cLight = 'GREEN'; cDesc = `投信微幅買超 · 法人籌碼偏多保護`;
+      }
+    } else {
+      if (rs >= 88) {
+        cScore = 92; cLight = 'GREEN'; cDesc = `RS評級 ${rs} · 機構高度持股之市場頂尖領頭羊`;
+      } else if (rs >= 80) {
+        cScore = 84; cLight = 'GREEN'; cDesc = `RS評級 ${rs} · 動能超越全市場 80% 標的`;
+      }
+    }
+
+    // 4. 基本動能
+    const gp = r.eps?.growth_pct;
+    const yp = r.dividend?.yield_pct;
+    let fScore = 75, fLight = 'GREEN', fDesc = `營運維持常態水準`;
+    if (gp != null && gp >= 25) {
+      fScore = 90; fLight = 'GREEN'; fDesc = `EPS 年增率 +${gp}% (高成長動能) · 獲利加速爆發`;
+    } else if (gp != null && gp > 0) {
+      fScore = 80; fLight = 'GREEN'; fDesc = `EPS 年增率 +${gp}% · 基本面維持穩健正向擴張`;
+    } else if (yp != null && yp >= 4.5) {
+      fScore = 86; fLight = 'GREEN'; fDesc = `預估現金殖利率 ${yp}% · 高股息防禦下檔保護`;
+    } else if (isEtf) {
+      fScore = 82; fLight = 'GREEN'; fDesc = `指數型商品 · 分散單一持股營運風險`;
+    }
+
+    // 5. 風報比
+    const stopLoss = setup?.stop_loss_price || Number((price * 0.985).toFixed(price >= 50 ? 1 : 2));
+    const targetPrice = setup?.target_price || Number((price * 1.055).toFixed(price >= 50 ? 1 : 2));
+    const stopPct = Number(((stopLoss - price) / (price || 1) * 100).toFixed(1));
+    const targetPct = Number(((targetPrice - price) / (price || 1) * 100).toFixed(1));
+    const rrr = Number(Math.abs(targetPct / (stopPct || -1.5)).toFixed(1));
+
+    let rScore = 85, rLight = 'GREEN', rDesc = `風報比 ${rrr}:1 · 承擔 ${stopPct}% 風險博取 +${targetPct}%`;
+    if (rrr >= 2.5) {
+      rScore = 94; rLight = 'GREEN';
+    } else if (rrr < 1.8) {
+      rScore = 65; rLight = 'YELLOW';
+      rDesc = `風報比 ${rrr}:1 · 建議拉回至更貼近支撐位再進場`;
+    }
+
+    const buyMin = Number((price * 0.992).toFixed(price >= 50 ? 1 : 2));
+    const buyMax = Number((price * 1.005).toFixed(price >= 50 ? 1 : 2));
+
+    const lights = [mLight, tLight, cLight, fLight, rLight];
+    const greenCount = lights.filter(l => l === 'GREEN').length;
+    const totalScore = Math.round(mScore*0.2 + tScore*0.25 + cScore*0.2 + fScore*0.15 + rScore*0.2);
+
+    let verdict = 'BUY', verdictDesc = `建議分批買進 (${greenCount}/5 綠燈 · 評分 ${totalScore})`;
+    let posPct = 25;
+    if (greenCount >= 4 && totalScore >= 80) {
+      verdict = 'BUY'; posPct = regLevel === 'BULL_STRONG' ? 25 : 15;
+    } else if (greenCount >= 3 && totalScore >= 70) {
+      verdict = 'WAIT'; verdictDesc = `拉回分批布局 (${greenCount}/5 綠燈 · 評分 ${totalScore})`;
+      posPct = 15;
+    } else {
+      verdict = 'AVOID'; verdictDesc = `暫先觀望待變 (${greenCount}/5 綠燈 · 評分 ${totalScore})`;
+      posPct = 0;
+    }
+
+    return {
+      total_score: totalScore,
+      passed_lights: greenCount,
+      verdict,
+      verdict_desc: verdictDesc,
+      dimensions: {
+        market:      { name: '大盤環境', score: mScore, light: mLight, summary: mDesc },
+        technical:   { name: '價量型態', score: tScore, light: tLight, summary: tDesc },
+        chips:       { name: '法人籌碼', score: cScore, light: cLight, summary: cDesc },
+        fundamental: { name: '基本動能', score: fScore, light: fLight, summary: fDesc },
+        risk_reward: { name: '風報比精算', score: rScore, light: rLight, summary: rDesc },
+      },
+      trade_plan: {
+        buy_zone: [buyMin, buyMax],
+        stop_loss: stopLoss,
+        stop_pct: stopPct,
+        target_price: targetPrice,
+        target_pct: targetPct,
+        rrr,
+        suggested_position_pct: posPct,
+      }
+    };
+  }
+
+  function normalizeResult(r, regime) {
     if (!r) return r;
     const sd = r.sema_data || {};
     const price = r.price || sd.price || 0;
@@ -660,7 +906,9 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
       is_it_hot: false,
     };
 
-    return { ...r, setup, chips };
+    const evalData = r.eval || buildEval(r, setup, chips, regime);
+
+    return { ...r, setup, chips, eval: evalData };
   }
 
   function MarketSection({ market, data, loading, error, onView }) {
@@ -669,9 +917,9 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     const [filter, setFilter] = useState('all');
     const onToggle = code => setExpanded(c => (c === code ? null : code));
     const label = market === 'tw' ? '台股' : '美股';
-    const rawResults = data?.results || [];
-    const results = rawResults.map(normalizeResult);
     const regime  = data?.market_regime;
+    const rawResults = data?.results || [];
+    const results = rawResults.map(r => normalizeResult(r, regime));
     const scanAt  = fmtDate(data?.scanned_at);
     const hasStock = results.some(r => r.source !== 'etf');
     const hasEtf   = results.some(r => r.source === 'etf');
@@ -1124,15 +1372,17 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
 
     const loading = tw.loading || us.loading;
     const error   = tw.error || us.error;
+    const twRegime = tw.data?.market_regime;
+    const usRegime = us.data?.market_regime;
 
     const twEtfs = (tw.data?.results || [])
       .filter(r => r.source === 'etf' || /^(00\d{2,4}[LA]?)$/.test(r.code))
-      .map(r => evalEtf(normalizeResult(r), mode));
+      .map(r => evalEtf(normalizeResult(r, twRegime), mode));
 
     const usKnown = ['TQQQ','SOXL','QLD','SSO','UPRO','NVDL','SMH','QQQ','SCHD','JEPI','JEPQ','VYM','DGRO','VOO'];
     const usEtfs = (us.data?.results || [])
       .filter(r => r.source === 'etf' || usKnown.includes(r.code))
-      .map(r => evalEtf(normalizeResult(r), mode));
+      .map(r => evalEtf(normalizeResult(r, usRegime), mode));
 
     let pool = [];
     if (marketFilter === 'tw') pool = twEtfs;
