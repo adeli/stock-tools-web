@@ -192,8 +192,46 @@ import ReactDOM from 'react-dom/client';
           ]
         }
       ]
+    },
+
+    'etf-dividend': {
+      title: 'ETF 股利與存股殖利率',
+      sections: [
+        {
+          heading: '💰 存股殖利率計算',
+          items: [
+            { term: '年化殖利率公式', desc: '近 12 個月現金股利加總 ÷ 目前市價。若為新掛牌或近期轉型之 ETF，依公告配息推估年度金額。' },
+            { term: '配息頻率判斷', desc: '由歷次除息月份間隔自動判定：月配（每月）、雙月配、季配（每季）、半年配、年配。' },
+            { term: '殖利率顏色階梯', desc: '綠色 ≥ 10%（超高息）、淺綠 ≥ 7%（優質高息）、黃色 ≥ 4%（穩健核心）、白色 < 4%（市值型成長）。' },
+          ]
+        },
+        {
+          heading: '🎯 存股加碼位階策略',
+          items: [
+            { term: '💎 便宜加碼點', desc: '均線拉回特價甜甜價，且距離年線維持多頭架構，屬於單筆特價加碼的絕佳時機。' },
+            { term: '✓ 定期定額 (合理)', desc: '站在年線之上，長期多頭穩健向上，維持既有紀律定期定額扣款。' },
+            { term: '⏸ 偏高暫停大筆追高', desc: '季線乖離過大（>25%），高檔震盪風險升高，維持定期定額，不宜單筆大額追高。' },
+            { term: '⚠️ 破年線觀望', desc: '股價跌破年線（200MA），長期架構轉弱，建議先暫停定期定額，等待落底回穩。' },
+          ]
+        },
+        {
+          heading: '📊 熱門 ETF 屬性對照',
+          items: [
+            { term: '高股息現金流型', desc: '00878（國泰永續高股息）、0056（元大高股息）、00919（群益精選高息）、SCHD（美股股息成長），適合追求現金流與退休族群。' },
+            { term: '核心指數型', desc: '0050（元大台灣50）、006208（富邦台50）、VOO（標普500）、QQQ（那指100），長期資產增值能力頂尖。' },
+            { term: '高動能產業型', desc: '00929（科技優息）、SMH（費城半導體）、SOXL/TQQQ（槓桿型，歸入短線快打策略）。' },
+          ]
+        }
+      ]
     }
   };
+
+  const MODULES = [
+    { key: 'dashboard',    label: '個股儀表板', icon: '📈' },
+    { key: 'screener',     label: '選股與風報比', icon: '🔍' },
+    { key: 'etf-dividend', label: 'ETF股利',   icon: '💰' },
+    { key: 'report',       label: 'AI分析報告', icon: '🤖' },
+  ];
 
   function HelpDrawer() {
     const [open, setOpen] = useState(false);
@@ -217,57 +255,108 @@ import ReactDOM from 'react-dom/client';
       return () => { delete window.toggleHelp; };
     }, []);
 
-    const content = HELP[tab];
-    if (!content) return null;
+    const activeKey = HELP[tab] ? tab : 'dashboard';
+    const content = HELP[activeKey];
 
     const isMobile = winW < 640;
-    const drawerW  = isMobile ? winW - 16 : Math.min(420, winW - 48);
+    const drawerW  = isMobile ? '100%' : Math.min(480, winW - 32);
 
     return (
       <>
+        {/* 背景遮罩 (Backdrop) */}
+        {open && (
+          <div
+            onClick={() => setOpen(false)}
+            style={{
+              position: 'fixed',
+              top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0, 0, 0, 0.72)',
+              backdropFilter: 'blur(5px)',
+              WebkitBackdropFilter: 'blur(5px)',
+              zIndex: 900,
+              transition: 'opacity 0.25s ease',
+            }}
+          />
+        )}
+
         {/* Drawer */}
         <div style={{
           position:'fixed', top:0, right:0, bottom:0, width:drawerW,
           background:'rgba(5,10,22,0.98)',
-          borderLeft:'1px solid rgba(96,165,250,0.18)',
-          boxShadow: open ? '-12px 0 48px rgba(0,0,0,0.7)' : 'none',
+          borderLeft:'1px solid rgba(96,165,250,0.22)',
+          boxShadow: open ? '-16px 0 60px rgba(0,0,0,0.85)' : 'none',
           zIndex:901,
           transform: open ? 'translateX(0)' : 'translateX(100%)',
           visibility: open ? 'visible' : 'hidden',
           transition: open
-            ? 'transform 0.3s cubic-bezier(0.4,0,0.2,1), visibility 0s 0s'
-            : 'transform 0.3s cubic-bezier(0.4,0,0.2,1), visibility 0s 0.3s',
+            ? 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s 0s'
+            : 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s 0.25s',
           display:'flex', flexDirection:'column',
           overflowY:'auto',
         }}>
           {/* Drawer header */}
           <div style={{
-            display:'flex', alignItems:'center', justifyContent:'space-between',
-            padding:'16px 20px',
-            borderBottom:'1px solid rgba(96,165,250,0.12)',
-            background:'rgba(8,17,38,0.95)',
-            position:'sticky', top:0, zIndex:1,
-            backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)',
+            padding:'16px 20px 12px',
+            borderBottom:'1px solid rgba(96,165,250,0.15)',
+            background:'rgba(8,17,38,0.98)',
+            position:'sticky', top:0, zIndex:2,
+            backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)',
           }}>
-            <div>
-              <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.16em',
-                           color:'#60a5fa',textTransform:'uppercase',marginBottom:3}}>
-                使用說明
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: 12 }}>
+              <div>
+                <div style={{fontSize:10.5,fontWeight:700,letterSpacing:'0.14em',
+                             color:'#60a5fa',textTransform:'uppercase',marginBottom:2}}>
+                  實戰操作指南 · HELP CENTER
+                </div>
+                <div style={{fontSize:18,fontWeight:900,color:'#f1f5f9'}}>{content.title}</div>
               </div>
-              <div style={{fontSize:17,fontWeight:800,color:'#f1f5f9'}}>{content.title}</div>
+              <button
+                onClick={() => setOpen(false)}
+                style={{
+                  height:32, padding: '0 12px', borderRadius:8, flexShrink:0,
+                  background:'rgba(255,255,255,0.06)',
+                  border:'1px solid rgba(255,255,255,0.12)',
+                  color:'#cbd5e1', fontSize:13, fontWeight:700, cursor:'pointer',
+                  display:'flex', alignItems:'center', gap:4,
+                  transition:'all 0.15s ease',
+                }}
+                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,0.12)'}
+                onMouseOut={e=>e.currentTarget.style.background='rgba(255,255,255,0.06)'}
+              >
+                <span>✕ 關閉</span>
+              </button>
             </div>
-            <button onClick={() => setOpen(false)} style={{
-              width:34,height:34,borderRadius:8,flexShrink:0,
-              background:'rgba(255,255,255,0.05)',
-              border:'1px solid rgba(255,255,255,0.1)',
-              color:'#94a3b8',fontSize:20,cursor:'pointer',
-              display:'flex',alignItems:'center',justifyContent:'center',
-              transition:'background 0.15s',
-            }}
-            onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,0.1)'}
-            onMouseOut={e=>e.currentTarget.style.background='rgba(255,255,255,0.05)'}>
-              ×
-            </button>
+
+            {/* 模組分類按鈕列 */}
+            <div style={{
+              display:'flex', gap:6, overflowX:'auto',
+              scrollbarWidth:'none', paddingBottom:2,
+            }}>
+              {MODULES.map(m => {
+                const active = activeKey === m.key;
+                return (
+                  <button
+                    key={m.key}
+                    onClick={() => setTab(m.key)}
+                    style={{
+                      whiteSpace:'nowrap',
+                      fontSize:12,
+                      fontWeight: active ? 800 : 500,
+                      color: active ? '#ffffff' : '#94a3b8',
+                      background: active ? 'linear-gradient(135deg, rgba(59,130,246,0.35) 0%, rgba(37,99,235,0.25) 100%)' : 'rgba(255,255,255,0.035)',
+                      border: active ? '1px solid rgba(96,165,250,0.6)' : '1px solid rgba(255,255,255,0.08)',
+                      borderRadius:8,
+                      padding:'5px 11px',
+                      cursor:'pointer',
+                      transition:'all 0.15s ease',
+                    }}
+                  >
+                    <span>{m.icon} </span>
+                    <span>{m.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Drawer body */}
@@ -290,7 +379,7 @@ import ReactDOM from 'react-dom/client';
                     <div style={{fontSize:13,fontWeight:800,color:'#93c5fd',marginBottom:3}}>
                       {item.term}
                     </div>
-                    <div style={{fontSize:13,color:'#94a3b8',lineHeight:1.7}}>
+                    <div style={{fontSize:13,color:'#cbd5e1',lineHeight:1.7}}>
                       {item.desc}
                     </div>
                   </div>
@@ -301,23 +390,23 @@ import ReactDOM from 'react-dom/client';
         </div>
 
         {/* Floating ? button */}
-        <button onClick={() => setOpen(o => !o)} title="使用說明" style={{
+        <button onClick={() => setOpen(o => !o)} title="實戰說明書" style={{
           position:'fixed', bottom: isMobile ? 20 : 28, right: isMobile ? 16 : 28,
           width: isMobile ? 42 : 46, height: isMobile ? 42 : 46, borderRadius:'50%',
           background: open
-            ? 'rgba(96,165,250,0.15)'
+            ? 'rgba(96,165,250,0.2)'
             : 'linear-gradient(135deg,#1d4ed8,#3b82f6)',
-          border: open ? '1px solid rgba(96,165,250,0.4)' : 'none',
+          border: open ? '1px solid rgba(96,165,250,0.5)' : 'none',
           cursor:'pointer',
-          fontSize:20,fontWeight:900,color:'#f1f5f9',
-          boxShadow: 'none',
+          fontSize: open ? 18 : 20, fontWeight:900, color:'#f1f5f9',
+          boxShadow: '0 4px 18px rgba(37,99,235,0.35)',
           display:'flex',alignItems:'center',justifyContent:'center',
           zIndex: open ? 902 : 800,
-          transition:'all 0.2s',
+          transition:'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
-        onMouseOver={e => { if (!open) e.currentTarget.style.transform='scale(1.1)'; }}
+        onMouseOver={e => { if (!open) e.currentTarget.style.transform='scale(1.08)'; }}
         onMouseOut={e => { e.currentTarget.style.transform='scale(1)'; }}>
-          {open ? '×' : '?'}
+          {open ? '✕' : '?'}
         </button>
       </>
     );

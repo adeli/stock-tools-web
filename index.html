@@ -24,6 +24,9 @@
       <span style="font-size: 12px;font-weight:700;letter-spacing:0.1em;color:var(--accent);">LIVE</span>
     </div>
     <div id="hdr-clock" style="font-family:'SF Mono','Fira Code',monospace;font-size: 14px;color:#cbd5e1;"></div>
+    <button class="hdr-help-btn" onclick="window.toggleHelp && window.toggleHelp()" title="開啟實戰說明書">
+      <span>📖</span><span class="hdr-help-text">說明</span>
+    </button>
   </div>
 </header>
 
@@ -54,7 +57,6 @@
       <button class="tab-btn"        data-tab="report"       onclick="showTab('report',this)">AI 報告</button>
       <button class="tab-btn"        data-tab="screener"     onclick="showTab('screener',this)">選股</button>
       <button class="tab-btn"        data-tab="etf-dividend" onclick="showTab('etf-dividend',this)">ETF股利</button>
-      <button class="tab-btn"        onclick="window.toggleHelp && window.toggleHelp()" style="color:var(--accent-bright);">說明 📖</button>
     </div>
 
     <!-- TAB: 個股儀表板 -->

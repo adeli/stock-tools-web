@@ -166,6 +166,29 @@ input.field::placeholder { color: var(--text-md); }
   width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
   animation: pulse-glow 2s ease-in-out infinite;
 }
+.hdr-help-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #93c5fd;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+.hdr-help-btn:hover {
+  background: rgba(96, 165, 250, 0.15);
+  border-color: rgba(96, 165, 250, 0.4);
+  color: #ffffff;
+}
+@media (max-width: 480px) {
+  .hdr-help-text { display: none; }
+  .hdr-help-btn { padding: 4px 7px; font-size: 13px; }
+}
 
 /* ── App body ── */
 .app-body {
