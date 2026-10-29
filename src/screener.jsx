@@ -38,13 +38,25 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
   ];
 
   const CORE_TW_ETFS_DEF = [
-    { code: '0050',   name: '元大台灣50', rs_rating: 50, dividend: { yield_pct: 1.5, freq: '半年配' } },
+    { code: '0050',   name: '元大台灣50', rs_rating: 80, dividend: { yield_pct: 1.5, freq: '半年配' } },
+    { code: '006208', name: '富邦台灣50', rs_rating: 80, dividend: { yield_pct: 1.6, freq: '半年配' } },
     { code: '00631L', name: '元大台灣50正2', rs_rating: 99, isLeverage: true },
     { code: '00670L', name: '富邦NASDAQ正2', rs_rating: 60, isLeverage: true },
     { code: '00878',  name: '國泰永續高股息', rs_rating: 71, dividend: { yield_pct: 7.1, freq: '季配' } },
     { code: '0056',   name: '元大高股息', rs_rating: 85, dividend: { yield_pct: 8.7, freq: '季配' } },
     { code: '00919',  name: '群益台灣精選高息', rs_rating: 65, dividend: { yield_pct: 10.4, freq: '季配' } },
     { code: '00929',  name: '復華台灣科技優息', rs_rating: 45, dividend: { yield_pct: 8.9, freq: '月配' } },
+  ];
+
+  const BENCHMARK_TW_STOCKS_DEF = [
+    { code: '2330', name: '台積電', rs_rating: 92, eps: { growth_pct: 91.6, valid: true } },
+    { code: '2454', name: '聯發科', rs_rating: 86, eps: { growth_pct: 35.0, valid: true } },
+    { code: '2317', name: '鴻海',   rs_rating: 88, eps: { growth_pct: 28.5, valid: true } },
+  ];
+
+  const BENCHMARK_US_STOCKS_DEF = [
+    { code: 'NVDA', name: 'NVIDIA 輝達', rs_rating: 95, eps: { growth_pct: 122.0, valid: true } },
+    { code: 'AAPL', name: 'Apple 蘋果',   rs_rating: 82, eps: { growth_pct: 12.0, valid: true } },
   ];
 
   function fmtDate(iso) {
@@ -206,7 +218,7 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
       const isPb = Boolean(
         (r.rs_rating >= 80) &&
         !isExtended &&
-        ['SEMA1', 'SEMA2', 'SEMA3', 'SEMA4', 'SEMA5'].includes(pLine) &&
+        ['SEMA1', 'SEMA2', 'SEMA3', 'SEMA4', 'SEMA5', 'SEMA6'].includes(pLine) &&
         dist != null && dist <= 3.5 &&
         (r.changePct == null || r.changePct >= -4.0)
       );
@@ -893,13 +905,19 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
       return () => { window.screenerLoad = null; };
     }, [loadAll]);
 
-    // 即時補充核心 ETF 的 SEMA 批次資料
+    // 即時補充核心 ETF 與權值股的 SEMA 批次資料
     useEffect(() => {
       const currentUsCodes = (us.data?.results || []).map(r => r.code);
       const currentTwCodes = (tw.data?.results || []).map(r => r.code);
 
-      const missingUs = CORE_US_ETFS_DEF.filter(x => !currentUsCodes.includes(x.code)).map(x => x.code);
-      const missingTw = CORE_TW_ETFS_DEF.filter(x => !currentTwCodes.includes(x.code)).map(x => `${x.code}.TW`);
+      const missingUs = [
+        ...CORE_US_ETFS_DEF.filter(x => !currentUsCodes.includes(x.code)).map(x => x.code),
+        ...BENCHMARK_US_STOCKS_DEF.filter(x => !currentUsCodes.includes(x.code)).map(x => x.code),
+      ];
+      const missingTw = [
+        ...CORE_TW_ETFS_DEF.filter(x => !currentTwCodes.includes(x.code)).map(x => `${x.code}.TW`),
+        ...BENCHMARK_TW_STOCKS_DEF.filter(x => !currentTwCodes.includes(x.code)).map(x => `${x.code}.TW`),
+      ];
       const needed = [...missingUs, ...missingTw];
 
       if (needed.length > 0 && Object.keys(liveEtfs).length === 0 && !liveLoading) {
@@ -943,17 +961,21 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
         if (sym.endsWith('.TW')) {
           const code = sym.replace(/\.TW$/i, '');
           if (!list.some(r => r.code === code)) {
-            const def = CORE_TW_ETFS_DEF.find(x => x.code === code) || { code, name: code, rs_rating: 60 };
+            const etfDef = CORE_TW_ETFS_DEF.find(x => x.code === code);
+            const stockDef = BENCHMARK_TW_STOCKS_DEF.find(x => x.code === code);
+            const def = etfDef || stockDef || { code, name: code, rs_rating: 60 };
+            const isEtf = Boolean(etfDef || /^(00\d{2,4}[LA]?)$/.test(code));
             list.push({
               code: def.code,
               name: def.name,
-              source: 'etf',
-              isEtf: true,
+              source: isEtf ? 'etf' : 'index',
+              isEtf,
               isTw: true,
               price: sema.price,
               changePct: sema.changePct,
               rs_rating: def.rs_rating,
               dividend: def.dividend || null,
+              eps: def.eps || null,
               sema_data: sema,
             });
           }
@@ -969,17 +991,21 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
         if (!sym.endsWith('.TW')) {
           const code = sym;
           if (!list.some(r => r.code === code)) {
-            const def = CORE_US_ETFS_DEF.find(x => x.code === code) || { code, name: code, rs_rating: 60 };
+            const etfDef = CORE_US_ETFS_DEF.find(x => x.code === code);
+            const stockDef = BENCHMARK_US_STOCKS_DEF.find(x => x.code === code);
+            const def = etfDef || stockDef || { code, name: code, rs_rating: 60 };
+            const isEtf = Boolean(etfDef);
             list.push({
               code: def.code,
               name: def.name,
-              source: 'etf',
-              isEtf: true,
+              source: isEtf ? 'etf' : 'index',
+              isEtf,
               isTw: false,
               price: sema.price,
               changePct: sema.changePct,
               rs_rating: def.rs_rating,
               dividend: def.dividend || null,
+              eps: def.eps || null,
               sema_data: sema,
             });
           }
@@ -992,14 +1018,14 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     const { shortPool, trendPool, savePool } = useMemo(() => {
       const fullList = [...allTwResults, ...allUsResults];
 
-      // 1. 短線快打: 個股符合 short_bounce 或支撐 <= 3.0% 且未大跌；槓桿/高動能 ETF 距支撐 <= 3.5%
+      // 1. 短線快打: 個股符合 short_bounce 或支撐 <= 3.5% 且未大跌；ETF (包含槓桿型與核心指數型 0050, 006208, VOO, QQQ 等) 距支撐 <= 3.5%
       const short = fullList.filter(r => {
         const s = r.setup || {};
         if (s.is_short_bounce) return true;
-        if (s.is_pullback_buy && s.dist_support_pct != null && s.dist_support_pct <= 3.0 && (r.changePct == null || r.changePct >= -3.5)) return true;
+        if (s.is_pullback_buy && s.dist_support_pct != null && s.dist_support_pct <= 3.5 && (r.changePct == null || r.changePct >= -3.5)) return true;
         if (r.isEtf) {
-          const isLevOrMom = ['TQQQ','SOXL','QLD','SSO','UPRO','NVDL','SMH','00631L','00670L'].includes(r.code);
-          if (isLevOrMom && s.dist_support_pct != null && s.dist_support_pct <= 3.5 && (r.changePct == null || r.changePct >= -4.0)) return true;
+          const isEligibleEtf = ['TQQQ','SOXL','QLD','SSO','UPRO','NVDL','SMH','00631L','00670L','0050','006208','QQQ','VOO','SPY'].includes(r.code);
+          if (isEligibleEtf && s.dist_support_pct != null && s.dist_support_pct <= 3.5 && (r.changePct == null || r.changePct >= -4.0)) return true;
         }
         return false;
       }).sort((a, b) => {
@@ -1009,9 +1035,10 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
         return (a.setup?.dist_support_pct || 999) - (b.setup?.dist_support_pct || 999);
       });
 
-      // 2. 波段強勢: RS >= 80 (或 CANSLIM 綜合高分標的)
+      // 2. 波段強勢: RS >= 80 或是指數型龍頭 (0050, 006208, VOO, QQQ 等) 處於多頭架構
       const trend = fullList.filter(r => {
         if (r.isEtf && ['TQQQ','SOXL','UPRO'].includes(r.code)) return false; // 槓桿歸類在短線
+        if (['0050','006208','QQQ','VOO','SPY'].includes(r.code) && (r.setup?.trend_template || (r.setup?.dist_support_pct != null && r.setup.dist_support_pct <= 4.0))) return true;
         return (r.rs_rating >= 80) || (r.setup?.trend_template && r.setup?.is_pullback_buy);
       }).sort((a, b) => (b.rs_rating || 0) - (a.rs_rating || 0));
 

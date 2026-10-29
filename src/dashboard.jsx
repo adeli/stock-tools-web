@@ -84,7 +84,7 @@ import { WORKER_URL as _API } from './config.js';
 
     const isPb = Boolean(
       !isExtended &&
-      ['SEMA1', 'SEMA2', 'SEMA3', 'SEMA4', 'SEMA5'].includes(pLine) &&
+      ['SEMA1', 'SEMA2', 'SEMA3', 'SEMA4', 'SEMA5', 'SEMA6'].includes(pLine) &&
       distS != null && distS <= 3.5 &&
       (data.changePct == null || data.changePct >= -4.0)
     );
@@ -171,12 +171,18 @@ import { WORKER_URL as _API } from './config.js';
       ? `風報比 ${rrr}:1【長線布局】· 中長線多頭向上，短線遇壓適合分批低接`
       : `風報比 ${rrr}:1【空間受限】· 空間較窄，等待均線守穩再進場`;
 
+    const tLight = tScore >= 80 ? 'GREEN' : tScore >= 60 ? 'YELLOW' : 'RED';
+    const rLight = rScore >= 80 ? 'GREEN' : rScore >= 70 ? 'YELLOW' : 'RED';
+    const lights = ['GREEN', tLight, 'GREEN', 'GREEN', rLight];
+    const greenCount = lights.filter(l => l === 'GREEN').length;
+    const totalScore = Math.round(mScore * 0.2 + tScore * 0.25 + cScore * 0.2 + fScore * 0.15 + rScore * 0.2);
+
     const dimensions = {
       market:      { name: '大盤環境', score: mScore, light: 'GREEN', summary: '大盤維持多頭格局 · 順風交易環境' },
-      technical:   { name: '價量型態', score: tScore, light: tScore >= 80 ? 'GREEN' : tScore >= 60 ? 'YELLOW' : 'RED', summary: rationale },
+      technical:   { name: '價量型態', score: tScore, light: tLight, summary: rationale },
       chips:       { name: '法人籌碼', score: cScore, light: 'GREEN', summary: isTw ? '法人籌碼維持常態偏多' : '機構持股結構穩固' },
       fundamental: { name: '基本動能', score: fScore, light: 'GREEN', summary: isEtf ? '指數型商品 · 分散營運風險' : '營運成長與財務結構穩健' },
-      risk_reward: { name: '風報比精算', score: rScore, light: rScore >= 80 ? 'GREEN' : rScore >= 70 ? 'YELLOW' : 'RED', summary: rrrSummary },
+      risk_reward: { name: '風報比精算', score: rScore, light: rLight, summary: rrrSummary },
     };
 
     return {
@@ -192,6 +198,8 @@ import { WORKER_URL as _API } from './config.js';
       isSb,
       isPb,
       trendTemplate,
+      greenCount,
+      totalScore,
       tradePlan: {
         buyZone: [buyMin, buyMax],
         stopLoss,
@@ -264,7 +272,7 @@ import { WORKER_URL as _API } from './config.js';
   }
 
   // ── 個股實戰卡片 (StockCard) ────────────────────────────────────────────────
-  function StockCard({ sym, name, state, data, onRemove, reports, onGoReport, gaugeW }) {
+  function StockCard({ sym, name, state, data, onRemove, reports, onGoReport, gaugeW, forceDiagOpen }) {
     const dispSym = sym.replace(/\.TW$/i, '');
     const msgs    = data ? computeGaugeMessages(data) : null;
     const chg     = data?.change ?? 0;
@@ -272,6 +280,7 @@ import { WORKER_URL as _API } from './config.js';
 
     const [gaugeOpen, setGaugeOpen] = useState(false);
     const [diagOpen, setDiagOpen]   = useState(false);
+    const isDiagVisible = forceDiagOpen || diagOpen;
 
     const ev = useMemo(() => evaluateStock(data), [data]);
     const rrr = ev?.tradePlan?.rrr ?? 2.5;
@@ -298,7 +307,7 @@ import { WORKER_URL as _API } from './config.js';
         className="glass-hover"
         style={{
           background: C.cardBg,
-          border: `1px solid ${gaugeOpen || diagOpen ? 'rgba(96,165,250,0.45)' : C.border}`,
+          border: `1px solid ${gaugeOpen || isDiagVisible ? 'rgba(96,165,250,0.45)' : C.border}`,
           borderRadius: 14,
           padding: '14px 16px',
           position: 'relative',
@@ -591,8 +600,8 @@ import { WORKER_URL as _API } from './config.js';
                   style={{
                     fontSize: 11.5,
                     fontWeight: 700,
-                    color: diagOpen ? '#ffffff' : C.mid,
-                    background: diagOpen ? 'rgba(255, 255, 255, 0.18)' : 'rgba(255, 255, 255, 0.05)',
+                    color: isDiagVisible ? '#ffffff' : C.mid,
+                    background: isDiagVisible ? 'rgba(255, 255, 255, 0.18)' : 'rgba(255, 255, 255, 0.05)',
                     border: '1px solid rgba(255, 255, 255, 0.12)',
                     borderRadius: 6,
                     padding: '4px 9px',
@@ -600,7 +609,7 @@ import { WORKER_URL as _API } from './config.js';
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  📊 診斷 {diagOpen ? '▲' : '▾'}
+                  📊 診斷 {isDiagVisible ? '▲' : '▾'}
                 </button>
               </div>
 
@@ -667,7 +676,7 @@ import { WORKER_URL as _API } from './config.js';
             )}
 
             {/* ── 就地展開抽屜：五維度量化診斷 (Five Dimensions) ── */}
-            {diagOpen && (
+            {isDiagVisible && (
               <div
                 style={{
                   marginTop: 12,
@@ -677,38 +686,88 @@ import { WORKER_URL as _API } from './config.js';
                   border: '1px solid rgba(255, 255, 255, 0.08)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 6,
+                  gap: 8,
                 }}
               >
-                <div style={{ fontSize: 12, fontWeight: 800, color: '#f1f5f9', marginBottom: 2 }}>
-                  📊 五維度實戰決策診斷
+                {/* 診斷總評標題列 */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>📊 五維度實戰決策診斷</span>
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        color: ev.badge.color,
+                        background: ev.badge.bg,
+                        border: `1px solid ${ev.badge.border}`,
+                        borderRadius: 12,
+                        padding: '1px 7px',
+                      }}
+                    >
+                      {ev.badge.text}
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 800, color: '#93c5fd' }}>
+                    {ev.greenCount ?? 4}/5 綠燈 · 評分 {ev.totalScore ?? 85}分
+                  </div>
                 </div>
-                {Object.entries(ev.dimensions).map(([k, d]) => (
+
+                {/* 五維度卡片網格 (響應式 2~5 列) */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 6 }}>
+                  {Object.entries(ev.dimensions).map(([k, d]) => (
+                    <div
+                      key={k}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: `1px solid ${lightColor(d.light)}33`,
+                        borderRadius: 6,
+                        padding: '6px 8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#f1f5f9' }}>{d.name}</span>
+                        <span style={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 800, color: lightColor(d.light) }}>
+                          ● {d.score}分
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 10.5, color: C.dim, lineHeight: 1.35 }}>
+                        {d.summary}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 壓力與支撐關卡提示 (比照選股診斷) */}
+                {data.semas && data.semas.length > 0 && (
                   <div
-                    key={k}
                     style={{
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      border: `1px solid ${lightColor(d.light)}33`,
-                      borderRadius: 6,
-                      padding: '5px 8px',
+                      fontSize: 11,
+                      color: C.dim,
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 8,
+                      flexWrap: 'wrap',
+                      gap: 10,
+                      paddingTop: 6,
+                      borderTop: '1px dashed rgba(255, 255, 255, 0.08)',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                      <span style={{ fontSize: 9, color: lightColor(d.light) }}>●</span>
-                      <span style={{ fontSize: 11.5, fontWeight: 700, color: '#f1f5f9' }}>{d.name}</span>
-                      <span style={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 800, color: lightColor(d.light) }}>
-                        {d.score}分
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 11, color: C.dim, textAlign: 'right' }}>
-                      {d.summary}
-                    </div>
+                    <span>
+                      壓力關卡:{' '}
+                      {data.semas.filter(s => s.value >= (data.price || 0)).slice(0, 2).map(s => (
+                        <b key={s.label} style={{ color: '#f87171', marginRight: 6 }}>{s.label} ${s.value}</b>
+                      )) || '上方無均線壓力'}
+                    </span>
+                    <span>
+                      支撐關卡:{' '}
+                      {data.semas.filter(s => s.value < (data.price || 0)).slice(0, 2).map(s => (
+                        <b key={s.label} style={{ color: '#4ade80', marginRight: 6 }}>{s.label} ${s.value}</b>
+                      )) || '下方均線支撐'}
+                    </span>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </>
@@ -745,6 +804,10 @@ import { WORKER_URL as _API } from './config.js';
 
     // 市場分群過濾: 'all' | 'tw' | 'us' | 'etf'
     const [filterGroup, setFilterGroup] = useState('all');
+    // 實戰診斷狀態過濾: 'all' | 'buy' | 'resist' | 'warning'
+    const [diagFilter, setDiagFilter]   = useState('all');
+    // 一鍵展開所有診斷
+    const [expandAllDiag, setExpandAllDiag] = useState(false);
 
     const containerRef = useRef(null);
 
@@ -870,11 +933,20 @@ import { WORKER_URL as _API } from './config.js';
     const countWarning = evaluatedItems.filter(x => x.ev?.badge?.text.includes('破') || x.ev?.badge?.text.includes('出場')).length;
 
     const filteredItems = useMemo(() => {
-      if (filterGroup === 'tw') return evaluatedItems.filter(x => x.isTw);
-      if (filterGroup === 'us') return evaluatedItems.filter(x => !x.isTw);
-      if (filterGroup === 'etf') return evaluatedItems.filter(x => x.isEtf);
-      return evaluatedItems;
-    }, [evaluatedItems, filterGroup]);
+      let list = evaluatedItems;
+      if (filterGroup === 'tw') list = list.filter(x => x.isTw);
+      else if (filterGroup === 'us') list = list.filter(x => !x.isTw);
+      else if (filterGroup === 'etf') list = list.filter(x => x.isEtf);
+
+      if (diagFilter === 'buy') {
+        list = list.filter(x => x.ev?.badge?.text.includes('買') || x.ev?.badge?.text.includes('起漲') || x.ev?.badge?.text.includes('便宜'));
+      } else if (diagFilter === 'resist') {
+        list = list.filter(x => x.ev?.badge?.text.includes('壓力'));
+      } else if (diagFilter === 'warning') {
+        list = list.filter(x => x.ev?.badge?.text.includes('破') || x.ev?.badge?.text.includes('出場'));
+      }
+      return list;
+    }, [evaluatedItems, filterGroup, diagFilter]);
 
     const GROUP_BUTTONS = [
       { key: 'all', label: `全部 (${countAll})` },
@@ -956,46 +1028,152 @@ import { WORKER_URL as _API } from './config.js';
           <div
             style={{
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
+              flexDirection: 'column',
               gap: 10,
               marginBottom: 14,
               padding: '0 2px',
             }}
           >
-            {/* 分群 Pills */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              {GROUP_BUTTONS.map(btn => {
-                const active = filterGroup === btn.key;
-                return (
-                  <button
-                    key={btn.key}
-                    onClick={() => setFilterGroup(btn.key)}
-                    style={{
-                      fontSize: 12,
-                      fontWeight: active ? 700 : 500,
-                      color: active ? '#60a5fa' : C.dim,
-                      background: active ? 'rgba(96, 165, 250, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                      border: active ? '1px solid rgba(96, 165, 250, 0.45)' : '1px solid rgba(255, 255, 255, 0.08)',
-                      borderRadius: 16,
-                      padding: '4px 12px',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {btn.label}
-                  </button>
-                );
-              })}
+            {/* ROW 1: 市場分群 Pills + 一鍵展開診斷按鈕 */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11.5, color: C.dim, marginRight: 2 }}>市場:</span>
+                {GROUP_BUTTONS.map(btn => {
+                  const active = filterGroup === btn.key;
+                  return (
+                    <button
+                      key={btn.key}
+                      onClick={() => setFilterGroup(btn.key)}
+                      style={{
+                        fontSize: 12,
+                        fontWeight: active ? 700 : 500,
+                        color: active ? '#60a5fa' : C.dim,
+                        background: active ? 'rgba(96, 165, 250, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                        border: active ? '1px solid rgba(96, 165, 250, 0.45)' : '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: 16,
+                        padding: '4px 12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {btn.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* 一鍵展開所有診斷 */}
+              <button
+                onClick={() => setExpandAllDiag(!expandAllDiag)}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: expandAllDiag ? '#93c5fd' : C.dim,
+                  background: expandAllDiag ? 'rgba(96, 165, 250, 0.18)' : 'rgba(255, 255, 255, 0.04)',
+                  border: `1px solid ${expandAllDiag ? 'rgba(96, 165, 250, 0.45)' : 'rgba(255, 255, 255, 0.08)'}`,
+                  borderRadius: 16,
+                  padding: '4px 12px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>📊 {expandAllDiag ? '收合全部診斷' : '一鍵展開診斷'}</span>
+              </button>
             </div>
 
-            {/* 戰況摘要統計 */}
-            <div style={{ fontSize: 12, color: C.dim, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span>戰況:</span>
-              <span style={{ color: '#4ade80', fontWeight: 700 }}>🟢 {countBuy} 檔觸及買點</span>
-              <span style={{ color: '#facc15', fontWeight: 700 }}>🟡 {countResist} 檔逼近壓力</span>
-              {countWarning > 0 && <span style={{ color: '#f87171', fontWeight: 700 }}>🚨 {countWarning} 檔破線警戒</span>}
+            {/* ROW 2: 診斷狀態篩選 (可點擊切換，深色質感晶片流) */}
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, paddingTop: 2 }}>
+              <span style={{ fontSize: 11.5, color: C.dim, marginRight: 2 }}>診斷篩選:</span>
+
+              <button
+                onClick={() => setDiagFilter('all')}
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: diagFilter === 'all' ? 700 : 500,
+                  color: diagFilter === 'all' ? '#f8fafc' : C.dim,
+                  background: diagFilter === 'all' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                  border: `1px solid ${diagFilter === 'all' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.06)'}`,
+                  borderRadius: 14,
+                  padding: '3px 10px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                全部
+              </button>
+
+              <button
+                onClick={() => setDiagFilter(diagFilter === 'buy' ? 'all' : 'buy')}
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: diagFilter === 'buy' ? 700 : 500,
+                  color: '#4ade80',
+                  background: diagFilter === 'buy' ? 'rgba(74, 222, 128, 0.22)' : 'rgba(74, 222, 128, 0.07)',
+                  border: `1px solid ${diagFilter === 'buy' ? 'rgba(74, 222, 128, 0.55)' : 'rgba(74, 222, 128, 0.2)'}`,
+                  borderRadius: 14,
+                  padding: '3px 10px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                🟢 觸及買點 ({countBuy})
+              </button>
+
+              <button
+                onClick={() => setDiagFilter(diagFilter === 'resist' ? 'all' : 'resist')}
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: diagFilter === 'resist' ? 700 : 500,
+                  color: '#facc15',
+                  background: diagFilter === 'resist' ? 'rgba(250, 204, 21, 0.22)' : 'rgba(250, 204, 21, 0.07)',
+                  border: `1px solid ${diagFilter === 'resist' ? 'rgba(250, 204, 21, 0.55)' : 'rgba(250, 204, 21, 0.2)'}`,
+                  borderRadius: 14,
+                  padding: '3px 10px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                🟡 逼近壓力 ({countResist})
+              </button>
+
+              {countWarning > 0 && (
+                <button
+                  onClick={() => setDiagFilter(diagFilter === 'warning' ? 'all' : 'warning')}
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: diagFilter === 'warning' ? 700 : 500,
+                    color: '#f87171',
+                    background: diagFilter === 'warning' ? 'rgba(248, 113, 113, 0.22)' : 'rgba(248, 113, 113, 0.07)',
+                    border: `1px solid ${diagFilter === 'warning' ? 'rgba(248, 113, 113, 0.55)' : 'rgba(248, 113, 113, 0.2)'}`,
+                    borderRadius: 14,
+                    padding: '3px 10px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  🚨 破線警戒 ({countWarning})
+                </button>
+              )}
+
+              {diagFilter !== 'all' && (
+                <button
+                  onClick={() => setDiagFilter('all')}
+                  style={{
+                    fontSize: 11,
+                    color: C.dim,
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '2px 6px',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  清除篩選
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -1005,6 +1183,28 @@ import { WORKER_URL as _API } from './config.js';
           <div style={{ textAlign: 'center', color: '#7fa8d0', fontSize: 14, lineHeight: 2.3, padding: '48px 0' }}>
             觀察清單目前是空的<br />
             <span style={{ fontSize: 12, color: '#475569' }}>點擊上方「熱門快選」或輸入代碼按「執行」加入實戰監控</span>
+          </div>
+        )}
+
+        {/* ── 篩選無符合結果提示 ── */}
+        {watchlist.length > 0 && filteredItems.length === 0 && (
+          <div style={{ textAlign: 'center', color: '#7fa8d0', fontSize: 13, lineHeight: 2, padding: '36px 0', background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: '1px dashed rgba(255,255,255,0.08)', margin: '10px 0' }}>
+            目前篩選條件下無符合標的<br />
+            <button
+              onClick={() => { setFilterGroup('all'); setDiagFilter('all'); }}
+              style={{
+                marginTop: 8,
+                fontSize: 12,
+                color: '#60a5fa',
+                background: 'rgba(96, 165, 250, 0.1)',
+                border: '1px solid rgba(96, 165, 250, 0.3)',
+                borderRadius: 6,
+                padding: '4px 12px',
+                cursor: 'pointer',
+              }}
+            >
+              重設所有篩選
+            </button>
           </div>
         )}
 
@@ -1025,6 +1225,7 @@ import { WORKER_URL as _API } from './config.js';
                   reports={reports}
                   onGoReport={handleGoReport}
                   gaugeW={gaugeW}
+                  forceDiagOpen={expandAllDiag}
                 />
               );
             })}
