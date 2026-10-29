@@ -157,14 +157,26 @@ import { WORKER_URL as _API } from './config.js';
     const tScore = isSb ? 95 : isPb ? 88 : data.belowSema3 ? 45 : 78;
     const cScore = isTw ? 82 : 85;
     const fScore = isEtf ? 84 : 78;
-    const rScore = rrr >= 2.5 ? 94 : rrr >= 1.8 ? 82 : 65;
+    const rScore = rrr >= 2.5 ? 94 : rrr >= 1.8 ? 82 : (isEtf || trendTemplate || isSb || isPb ? 76 : 60);
+
+    const rrrSummary = rrr >= 2.5
+      ? `風報比 ${rrr}:1【短波極佳】· 承擔 ${stopPct}% 搏取 +${targetPct}%`
+      : rrr >= 1.8
+      ? `風報比 ${rrr}:1【合理試單】· 承擔 ${stopPct}% 搏取 +${targetPct}%`
+      : data.belowSema3 || (ma200Dist != null && ma200Dist < 0)
+      ? `風報比 ${rrr}:1【破線偏弱】· 跌破重要支撐，不宜貿然抄底`
+      : isExtended
+      ? `風報比 ${rrr}:1【乖離過大】· 脫離均線過遠，耐心等拉回`
+      : (isEtf || trendTemplate || isSb || isPb)
+      ? `風報比 ${rrr}:1【長線布局】· 中長線多頭向上，短線遇壓適合分批低接`
+      : `風報比 ${rrr}:1【空間受限】· 空間較窄，等待均線守穩再進場`;
 
     const dimensions = {
       market:      { name: '大盤環境', score: mScore, light: 'GREEN', summary: '大盤維持多頭格局 · 順風交易環境' },
       technical:   { name: '價量型態', score: tScore, light: tScore >= 80 ? 'GREEN' : tScore >= 60 ? 'YELLOW' : 'RED', summary: rationale },
       chips:       { name: '法人籌碼', score: cScore, light: 'GREEN', summary: isTw ? '法人籌碼維持常態偏多' : '機構持股結構穩固' },
       fundamental: { name: '基本動能', score: fScore, light: 'GREEN', summary: isEtf ? '指數型商品 · 分散營運風險' : '營運成長與財務結構穩健' },
-      risk_reward: { name: '風報比精算', score: rScore, light: rScore >= 80 ? 'GREEN' : 'YELLOW', summary: `風報比 ${rrr}:1 · 承擔 ${stopPct}% 搏取 +${targetPct}%` },
+      risk_reward: { name: '風報比精算', score: rScore, light: rScore >= 80 ? 'GREEN' : rScore >= 70 ? 'YELLOW' : 'RED', summary: rrrSummary },
     };
 
     return {
@@ -176,6 +188,10 @@ import { WORKER_URL as _API } from './config.js';
       distS,
       dR,
       ma200Dist,
+      isExtended,
+      isSb,
+      isPb,
+      trendTemplate,
       tradePlan: {
         buyZone: [buyMin, buyMax],
         stopLoss,
@@ -185,6 +201,65 @@ import { WORKER_URL as _API } from './config.js';
         rrr,
       },
       dimensions,
+    };
+  }
+
+  // ── 智能多維度風報比評級 (避免優質成長股/ETF被誤標為勿追) ──
+  function evaluateRrrGrade(rrr, { isEtf, ma200Dist, belowSupport, isExtended, isSb, isPb, trendTemplate }) {
+    const r = Number(rrr || 2.0);
+    if (r >= 2.5) {
+      return {
+        text: '短波極佳',
+        color: '#4ade80',
+        bg: 'rgba(74, 222, 128, 0.08)',
+        border: 'rgba(74, 222, 128, 0.25)',
+        tooltip: `風報比 ${r}:1【短波極佳】\n• 冒 1 元風險搏 ${r} 元利潤，勝率 28% 即可保本，高期望值首選。\n• 停損僅 -1.5%~-2%，向上波段目標明確。`,
+      };
+    }
+    if (r >= 1.8) {
+      return {
+        text: '合理試單',
+        color: '#38bdf8',
+        bg: 'rgba(56, 189, 248, 0.08)',
+        border: 'rgba(56, 189, 248, 0.25)',
+        tooltip: `風報比 ${r}:1【合理試單】\n• 冒 1 元風險搏 ${r} 元利潤，勝率 35% 即保本。\n• 符合專業機構盈虧比門檻，可分批布局。`,
+      };
+    }
+    // RRR < 1.8: 區分「走下坡破線」vs「乖離過大」vs「優質股/ETF長線整理買點」
+    if (belowSupport || (ma200Dist != null && ma200Dist < 0)) {
+      return {
+        text: '破線偏弱',
+        color: '#f87171',
+        bg: 'rgba(248, 113, 113, 0.08)',
+        border: 'rgba(248, 113, 113, 0.25)',
+        tooltip: `風報比 ${r}:1【破線偏弱 · 觀望勿抄底】\n• 股價已跌破重要支撐或年線，處於走下坡或不穩定弱勢結構。\n• 停損風險偏高且反彈動能不明，嚴守紀律不宜貿然抄底。`,
+      };
+    }
+    if (isExtended) {
+      return {
+        text: '乖離過大',
+        color: '#fb923c',
+        bg: 'rgba(251, 146, 60, 0.08)',
+        border: 'rgba(251, 146, 60, 0.25)',
+        tooltip: `風報比 ${r}:1【乖離過大 · 耐心等拉回】\n• 股價脫離均線過遠 (+25%以上)，高檔獲利了結賣壓沉重。\n• 追高盈虧比極差，建議耐心等待回測均線守穩再進場。`,
+      };
+    }
+    const isQuality = isEtf || trendTemplate || isSb || isPb;
+    if (isQuality) {
+      return {
+        text: '長線布局',
+        color: '#a78bfa',
+        bg: 'rgba(167, 139, 250, 0.08)',
+        border: 'rgba(167, 139, 250, 0.25)',
+        tooltip: `風報比 ${r}:1【長線布局 · 遇壓整理】\n• 中長線多頭與基本面體質優良，短線靠近前高或阻力整理，短波盈虧比暫受限。\n• 對中長線或定時定額投資人而言，拉回支撐反而是優質分批低接買點！`,
+      };
+    }
+    return {
+      text: '空間受限',
+      color: '#fbbf24',
+      bg: 'rgba(251, 191, 36, 0.08)',
+      border: 'rgba(251, 191, 36, 0.25)',
+      tooltip: `風報比 ${r}:1【短線空間受限 · 分批低接】\n• 距離上方壓力較近，短波衝刺獲利空間較窄。\n• 建議等待更接近下方支撐線時再行低接。`,
     };
   }
 
@@ -200,13 +275,15 @@ import { WORKER_URL as _API } from './config.js';
 
     const ev = useMemo(() => evaluateStock(data), [data]);
     const rrr = ev?.tradePlan?.rrr ?? 2.5;
-    const rrrGrade = rrr >= 2.5
-      ? { text: '極佳', color: '#4ade80', bg: 'rgba(74, 222, 128, 0.08)', border: 'rgba(74, 222, 128, 0.25)' }
-      : rrr >= 1.8
-      ? { text: '合格', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.08)', border: 'rgba(56, 189, 248, 0.25)' }
-      : { text: '偏低勿追', color: '#fb923c', bg: 'rgba(251, 146, 60, 0.08)', border: 'rgba(251, 146, 60, 0.25)' };
-
-    const rrrTooltip = `風報比 (RRR) = 潛在目標獲利 ÷ 潛在停損風險\n• ≥2.5:1【極佳】冒 1 元風險搏 2.5 元以上利潤，勝率 28% 即保本，高期望值首選單。\n• 1.8~2.4:1【合格】符合機構盈虧比門檻，可分批布局。\n• <1.8:1【偏低勿追】空間受限，不建議追高，等待拉回均線。`;
+    const rrrGrade = evaluateRrrGrade(rrr, {
+      isEtf: ev?.isEtf,
+      ma200Dist: ev?.ma200Dist,
+      belowSupport: data?.belowSema3,
+      isExtended: ev?.isExtended,
+      isSb: ev?.isSb,
+      isPb: ev?.isPb,
+      trendTemplate: ev?.trendTemplate,
+    });
 
     const isTW = sym.toUpperCase().endsWith('.TW');
     const match = reports?.find(r => r.symbol.toUpperCase().replace(/\.TW$/i, '') === dispSym.toUpperCase());
@@ -364,6 +441,7 @@ import { WORKER_URL as _API } from './config.js';
 
             {/* 第 4 行：實戰作戰計畫 (Trade Plan 數據膠囊) */}
             <div
+              className="trade-pills-row"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -419,7 +497,7 @@ import { WORKER_URL as _API } from './config.js';
                   </div>
 
                   <div
-                    title={rrrTooltip}
+                    title={rrrGrade.tooltip}
                     style={{
                       fontSize: 10.5,
                       fontFamily: 'monospace',
@@ -489,7 +567,7 @@ import { WORKER_URL as _API } from './config.js';
             </div>
 
             {/* 第 5 行：按鈕列 (水位計抽屜 / 診斷抽屜 / AI報告) */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+            <div className="card-action-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <button
                   onClick={() => setGaugeOpen(!gaugeOpen)}
@@ -840,7 +918,7 @@ import { WORKER_URL as _API } from './config.js';
           </div>
 
           {/* 熱門快選標籤 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+          <div className="hot-tags-scroll" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
             <span style={{ fontSize: 11, color: C.dim }}>熱門快選:</span>
             {HOT_TAGS.map(t => (
               <button
@@ -932,7 +1010,7 @@ import { WORKER_URL as _API } from './config.js';
 
         {/* ── 自選卡片列表 (實戰卡片流) ── */}
         {filteredItems.length > 0 && (
-          <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+          <div className="stocks-grid" style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))' }}>
             {filteredItems.map(item => {
               const cardData = batchData[item.norm];
               const cardState = batchState === 'done' ? (cardData?.error ? 'error' : 'done') : batchState;

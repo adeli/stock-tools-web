@@ -790,10 +790,12 @@ export function PriceRail({ data }) {
   const isRising = s => { const r=(s.recent||[]).filter(x=>x!=null&&!isNaN(x)); return r.length>=2&&r[r.length-1]>r[r.length-2]; };
 
   const { ballColor, glowColor, blinkDur, sellTarget, buyTargetUp } = computeBallColor(data);
+  const clampLeft = pctStr => `clamp(22px, ${pctStr}, calc(100% - 22px))`;
+  const clampBall = pctStr => `clamp(10px, ${pctStr}, calc(100% - 10px))`;
 
   return (
     <div style={{padding:'16px 0 14px',position:'relative',userSelect:'none'}}>
-      <div style={{position:'absolute',top:0,left:priceX,transform:'translateX(-50%)',
+      <div style={{position:'absolute',top:0,left:clampLeft(priceX),transform:'translateX(-50%)',
         fontSize:11,fontWeight:800,color:'#f1f5f9',fontFamily:'monospace',whiteSpace:'nowrap',lineHeight:1}}>
         {fmtV(price)}
       </div>
@@ -809,7 +811,7 @@ export function PriceRail({ data }) {
           <div style={{position:'absolute',left:toX(ph.price),top:-4,bottom:-4,width:2,
             background:'#fbbf24',opacity:0.85,transform:'translateX(-50%)'}}/>
         )}
-        <div style={{position:'absolute',left:priceX,top:'50%',transform:'translate(-50%,-50%)',
+        <div style={{position:'absolute',left:clampBall(priceX),top:'50%',transform:'translate(-50%,-50%)',
           width:20,height:20,borderRadius:'50%',background:ballColor,
           boxShadow:`0 1px 6px rgba(0,0,0,0.5), 0 0 ${blinkDur?8:4}px ${glowColor}`,
           border:'1.5px solid rgba(255,255,255,0.35)',zIndex:2,
@@ -817,19 +819,19 @@ export function PriceRail({ data }) {
       </div>
       <div style={{position:'relative',height:16,marginTop:4}}>
         {buyTargetUp && (
-          <div style={{position:'absolute',left:toX(buyTargetUp.value),transform:'translateX(-50%)',
+          <div style={{position:'absolute',left:clampLeft(toX(buyTargetUp.value)),transform:'translateX(-50%)',
             fontSize:10,fontWeight:800,color:semaColor(buyTargetUp.label, false),fontFamily:'monospace',whiteSpace:'nowrap'}}>
             {isRising(buyTargetUp)?'▲':'▼'}{fmtV(buyTargetUp.value)}
           </div>
         )}
         {sellTarget && (
-          <div style={{position:'absolute',left:toX(sellTarget.value),transform:'translateX(-50%)',
+          <div style={{position:'absolute',left:clampLeft(toX(sellTarget.value)),transform:'translateX(-50%)',
             fontSize:10,fontWeight:800,color:semaColor(sellTarget.label, true),fontFamily:'monospace',whiteSpace:'nowrap'}}>
             {isRising(sellTarget)?'▲':'▼'}{fmtV(sellTarget.value)}
           </div>
         )}
         {ph?.price > price && (
-          <div style={{position:'absolute',left:toX(ph.price),transform:'translateX(-50%)',
+          <div style={{position:'absolute',left:clampLeft(toX(ph.price)),transform:'translateX(-50%)',
             fontSize:10,color:'#fbbf24',fontFamily:'monospace',whiteSpace:'nowrap'}}>
             {fmtV(ph.price)}
           </div>

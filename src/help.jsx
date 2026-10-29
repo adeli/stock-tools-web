@@ -212,6 +212,11 @@ import ReactDOM from 'react-dom/client';
       return () => window.removeEventListener('resize', onResize);
     }, []);
 
+    useEffect(() => {
+      window.toggleHelp = () => setOpen(o => !o);
+      return () => { delete window.toggleHelp; };
+    }, []);
+
     const content = HELP[tab];
     if (!content) return null;
 

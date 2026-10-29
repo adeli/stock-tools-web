@@ -17,18 +17,51 @@ function showTab(name, btn) {
 (function () {
   const clockEl  = document.getElementById('hdr-clock');
   const marketEl = document.getElementById('hdr-market');
+
+  function getMarketInfo(now) {
+    // 1. 台股 Asia/Taipei
+    const twDay = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Taipei', weekday: 'short' }).format(now);
+    const twIsWd = !['Sat', 'Sun'].includes(twDay);
+    const twParts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Taipei', hour: 'numeric', minute: 'numeric', hour12: false
+    }).formatToParts(now);
+    const twH = parseInt(twParts.find(p => p.type === 'hour').value, 10);
+    const twM = parseInt(twParts.find(p => p.type === 'minute').value, 10);
+    const twMins = twH * 60 + twM;
+
+    // 2. 美股 America/New_York (自動適應夏令 EDT / 冬令 EST)
+    const usDay = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' }).format(now);
+    const usIsWd = !['Sat', 'Sun'].includes(usDay);
+    const usParts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', hour12: false
+    }).formatToParts(now);
+    const usH = parseInt(usParts.find(p => p.type === 'hour').value, 10);
+    const usM = parseInt(usParts.find(p => p.type === 'minute').value, 10);
+    const usMins = usH * 60 + usM;
+
+    // 檢查台股狀態 (08:30 試撮, 09:00-13:30 開盤, 13:30-14:30 盤後定價)
+    if (twIsWd) {
+      if (twMins >= 540 && twMins < 810) return { txt: 'TW 開盤', col: '#22c55e' };
+      if (twMins >= 510 && twMins < 540) return { txt: 'TW 試撮', col: '#facc15' };
+      if (twMins >= 810 && twMins < 870) return { txt: 'TW 盤後', col: '#6366f1' };
+    }
+
+    // 檢查美股狀態 (04:00-09:30 盤前, 09:30-16:00 常規開盤, 16:00-20:00 盤後)
+    if (usIsWd) {
+      if (usMins >= 570 && usMins < 960)  return { txt: 'US 開盤', col: '#22c55e' };
+      if (usMins >= 240 && usMins < 570)  return { txt: 'US 盤前', col: '#38bdf8' };
+      if (usMins >= 960 && usMins < 1200) return { txt: 'US 盤後', col: '#6366f1' };
+    }
+
+    return { txt: '休市', col: '#94a3b8' };
+  }
+
   function tick() {
     const now = new Date(), p2 = n => String(n).padStart(2,'0');
     clockEl.textContent = `${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())}`;
-    const d = now.getUTCDay(), mins = now.getUTCHours()*60 + now.getUTCMinutes();
-    const wd = d >= 1 && d <= 5;
-    let txt = '休市', col = '#cbd5e1';
-    if (wd) {
-      if      (mins >= 60  && mins < 330)  { txt = 'TW 開盤'; col = '#22c55e'; }
-      else if (mins >= 810 && mins < 1260) { txt = 'US 開盤'; col = '#22c55e'; }
-      else                                 { txt = '盤後';    col = '#6366f1'; }
-    }
-    marketEl.textContent = txt; marketEl.style.color = col;
+    const { txt, col } = getMarketInfo(now);
+    marketEl.textContent = txt;
+    marketEl.style.color = col;
   }
   tick(); setInterval(tick, 1000);
 })();
@@ -142,17 +175,36 @@ btn.addEventListener('click', async () => {
     if (!genRes.ok) throw new Error(await genRes.text());
     const { job_id } = await genRes.json();
     setStep(1); statusText.textContent = '佇列等待中...';
-    const poll = setInterval(async () => {
+
+    let pollCount = 0;
+    let pollTimeout = null;
+
+    const checkStatus = async () => {
+      pollCount++;
       let data;
-      try { data = await fetch(`${WORKER_URL}/status?job_id=${job_id}`).then(r => r.json()); } catch { return; }
-      if (data.status === 'in_progress') { setStep(2); statusText.textContent = '分析進行中...'; }
-      else if (data.status === 'success') {
-        clearInterval(poll); stopTimer('#22c55e'); spinner.classList.add('hidden');
-        setStep(3); statusText.textContent = '✅ 分析完成！';
+      try {
+        data = await fetch(`${WORKER_URL}/status?job_id=${job_id}`).then(r => r.json());
+      } catch {
+        const nextDelay = pollCount <= 6 ? 5000 : 10000;
+        pollTimeout = setTimeout(checkStatus, nextDelay);
+        return;
+      }
+
+      if (data.status === 'in_progress') {
+        setStep(2);
+        statusText.textContent = '分析進行中...';
+        const nextDelay = pollCount <= 6 ? 5000 : 10000;
+        pollTimeout = setTimeout(checkStatus, nextDelay);
+      } else if (data.status === 'success') {
+        stopTimer('#22c55e');
+        spinner.classList.add('hidden');
+        setStep(3);
+        statusText.textContent = '✅ 分析完成！';
         downloadBtn.href = data.drive_link;
         downloadBtn.textContent = '開啟報告';
         downloadSection.classList.remove('hidden');
-        btn.disabled = false; btn.textContent = '產生報告';
+        btn.disabled = false;
+        btn.textContent = '產生報告';
         setTimeout(async () => {
           try {
             const rData = await fetch(`${WORKER_URL}/reports`).then(r => r.json());
@@ -166,12 +218,19 @@ btn.addEventListener('click', async () => {
           loadCards();
         }, 3000);
       } else if (data.status === 'failure') {
-        clearInterval(poll); stopTimer('#ef4444'); spinner.classList.add('hidden');
+        stopTimer('#ef4444');
+        spinner.classList.add('hidden');
         const reason = (data.conclusion && data.conclusion !== 'failure') ? `（${data.conclusion}）` : '';
         statusText.textContent = `❌ 分析失敗${reason}，請稍後再試`;
-        btn.disabled = false; btn.textContent = '產生報告';
+        btn.disabled = false;
+        btn.textContent = '產生報告';
+      } else {
+        const nextDelay = pollCount <= 6 ? 5000 : 10000;
+        pollTimeout = setTimeout(checkStatus, nextDelay);
       }
-    }, 30000);
+    };
+
+    pollTimeout = setTimeout(checkStatus, 3500);
   } catch(e) {
     stopTimer('#ef4444'); spinner.classList.add('hidden');
     statusText.textContent = '發生錯誤：' + e.message;
@@ -202,8 +261,12 @@ function getSignalTag(c) {
 async function loadCards() {
   const container = document.getElementById('cards-container');
   const reportsContainer = document.getElementById('reports-container');
-  container.innerHTML = `<div style="text-align:center;padding:16px;color:#cbd5e1;font-size: 15px;">載入中...</div>`;
-  reportsContainer.innerHTML = `<div style="text-align:center;padding:20px;color:#cbd5e1;font-size: 15px;">載入中...</div>`;
+  container.innerHTML = `
+    <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fill, minmax(min(100%, 300px), 1fr));">
+      <div class="skeleton" style="height:120px;border-radius:12px;"></div>
+      <div class="skeleton" style="height:120px;border-radius:12px;"></div>
+    </div>`;
+  reportsContainer.innerHTML = `<div style="text-align:center;padding:20px;color:#cbd5e1;font-size: 15px;">載入報告歷程中...</div>`;
   try {
     const [data, rData] = await Promise.all([
       fetch(`${WORKER_URL}/cards`).then(r => r.json()),

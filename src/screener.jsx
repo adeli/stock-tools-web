@@ -317,6 +317,65 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     );
   }
 
+  // ── 智能多維度風報比評級 (避免優質成長股/ETF被誤標為勿追) ──
+  function evaluateRrrGrade(rrr, { isEtf, ma200Dist, belowSupport, isExtended, isSb, isPb, trendTemplate, rsRating, epsGrowth }) {
+    const r = Number(rrr || 2.0);
+    if (r >= 2.5) {
+      return {
+        text: '短波極佳',
+        color: '#4ade80',
+        bg: 'rgba(74, 222, 128, 0.08)',
+        border: 'rgba(74, 222, 128, 0.25)',
+        tooltip: `風報比 ${r}:1【短波極佳】\n• 冒 1 元風險搏 ${r} 元利潤，勝率 28% 即可保本，高期望值首選。\n• 停損僅 -1.5%~-2%，向上波段目標明確。`,
+      };
+    }
+    if (r >= 1.8) {
+      return {
+        text: '合理試單',
+        color: '#38bdf8',
+        bg: 'rgba(56, 189, 248, 0.08)',
+        border: 'rgba(56, 189, 248, 0.25)',
+        tooltip: `風報比 ${r}:1【合理試單】\n• 冒 1 元風險搏 ${r} 元利潤，勝率 35% 即保本。\n• 符合專業機構盈虧比門檻，可分批布局。`,
+      };
+    }
+    // RRR < 1.8: 區分「走下坡破線」vs「乖離過大」vs「優質股/ETF長線整理買點」
+    if (belowSupport || (ma200Dist != null && ma200Dist < 0)) {
+      return {
+        text: '破線偏弱',
+        color: '#f87171',
+        bg: 'rgba(248, 113, 113, 0.08)',
+        border: 'rgba(248, 113, 113, 0.25)',
+        tooltip: `風報比 ${r}:1【破線偏弱 · 觀望勿抄底】\n• 股價已跌破重要支撐或年線，處於走下坡或不穩定弱勢結構。\n• 停損風險偏高且反彈動能不明，嚴守紀律不宜貿然抄底。`,
+      };
+    }
+    if (isExtended) {
+      return {
+        text: '乖離過大',
+        color: '#fb923c',
+        bg: 'rgba(251, 146, 60, 0.08)',
+        border: 'rgba(251, 146, 60, 0.25)',
+        tooltip: `風報比 ${r}:1【乖離過大 · 耐心等拉回】\n• 股價脫離均線過遠 (+25%以上)，高檔獲利了結賣壓沉重。\n• 追高盈虧比極差，建議耐心等待回測均線守穩再進場。`,
+      };
+    }
+    const isQuality = isEtf || (rsRating != null && rsRating >= 75) || trendTemplate || (epsGrowth != null && epsGrowth > 0) || isSb || isPb;
+    if (isQuality) {
+      return {
+        text: '長線布局',
+        color: '#a78bfa',
+        bg: 'rgba(167, 139, 250, 0.08)',
+        border: 'rgba(167, 139, 250, 0.25)',
+        tooltip: `風報比 ${r}:1【長線布局 · 遇壓整理】\n• 中長線多頭與基本面體質優良，短線靠近前高或阻力整理，短波盈虧比暫受限。\n• 對中長線或定時定額投資人而言，拉回支撐反而是優質分批低接買點！`,
+      };
+    }
+    return {
+      text: '空間受限',
+      color: '#fbbf24',
+      bg: 'rgba(251, 191, 36, 0.08)',
+      border: 'rgba(251, 191, 36, 0.25)',
+      tooltip: `風報比 ${r}:1【短線空間受限 · 分批低接】\n• 距離上方壓力較近，短波衝刺獲利空間較窄。\n• 建議等待更接近下方支撐線時再行低接。`,
+    };
+  }
+
   // ── Apple 風格「極簡實戰卡片」 (ActionCard) ──────────────────────────────────
   function ActionCard({ r, strategy, onView }) {
     const [detailOpen, setDetailOpen] = useState(false);
@@ -402,13 +461,17 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     const targetPrice = tp.target_price || (price * 1.045).toFixed(1);
     const targetPct = tp.target_pct || +4.5;
     const rrr = tp.rrr || 2.5;
-    const rrrGrade = rrr >= 2.5
-      ? { text: '極佳', color: '#4ade80', bg: 'rgba(74, 222, 128, 0.08)', border: 'rgba(74, 222, 128, 0.25)' }
-      : rrr >= 1.8
-      ? { text: '合格', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.08)', border: 'rgba(56, 189, 248, 0.25)' }
-      : { text: '偏低勿追', color: '#fb923c', bg: 'rgba(251, 146, 60, 0.08)', border: 'rgba(251, 146, 60, 0.25)' };
-
-    const rrrTooltip = `風報比 (RRR) = 潛在目標獲利 ÷ 潛在停損風險\n• ≥2.5:1【極佳】冒 1 元風險搏 2.5 元以上利潤，勝率 28% 即保本，高期望值首選單。\n• 1.8~2.4:1【合格】符合機構盈虧比門檻，可分批布局。\n• <1.8:1【偏低勿追】空間受限，不建議追高，等待拉回均線。`;
+    const rrrGrade = evaluateRrrGrade(rrr, {
+      isEtf: r.isEtf || isEtfSave,
+      ma200Dist: r.ma200_dist,
+      belowSupport: sd.belowSema3,
+      isExtended: setup.is_extended,
+      isSb: setup.is_short_bounce,
+      isPb: setup.is_pullback_buy,
+      trendTemplate: setup.trend_template,
+      rsRating: r.rs_rating,
+      epsGrowth: r.eps?.growth_pct,
+    });
 
     // ETF 存股數據
     const etfYield = r.dividend?.yield_pct ?? (
@@ -548,7 +611,7 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
           }}
         >
           {/* 左側：具體數據 Pills */}
-          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+          <div className="trade-pills-row" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
             {!isEtfSave ? (
               <>
                 {/* 建議進場 */}
@@ -598,7 +661,7 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
 
                 {/* 風報比 */}
                 <div
-                  title={rrrTooltip}
+                  title={rrrGrade.tooltip}
                   style={{
                     fontSize: 11,
                     fontFamily: 'monospace',
@@ -672,7 +735,7 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
           </div>
 
           {/* 右側：快速動作按鈕 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div className="card-action-bar" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <WatchlistButton code={r.code} name={r.name} />
 
             <button
@@ -741,7 +804,7 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
             }}
           >
             {ev.dimensions && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 6, marginBottom: 4 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 6, marginBottom: 4 }}>
                 {Object.entries(ev.dimensions).map(([k, d]) => (
                   <div
                     key={k}
@@ -1008,6 +1071,7 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
       <div style={{ maxWidth: 960, margin: '0 auto', paddingBottom: 40 }}>
         {/* ── 頂部策略選擇按鈕 (Apple 風格膠囊按鈕) ── */}
         <div
+          className="strategy-pills-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(3, 1fr)',

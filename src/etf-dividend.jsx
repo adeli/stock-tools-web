@@ -92,6 +92,29 @@ import ReactDOM from 'react-dom/client';
     return C.dim;
   }
 
+  const FALLBACK_ETF_DATA = [
+    ['00878', '國泰永續高股息', '113年11月18日', '', '', '0.55'],
+    ['00878', '國泰永續高股息', '113年08月16日', '', '', '0.55'],
+    ['00878', '國泰永續高股息', '113年05月17日', '', '', '0.51'],
+    ['00878', '國泰永續高股息', '113年02月27日', '', '', '0.40'],
+    ['0056',  '元大高股息',     '113年10月17日', '', '', '1.07'],
+    ['0056',  '元大高股息',     '113年07月16日', '', '', '1.07'],
+    ['0056',  '元大高股息',     '113年04月18日', '', '', '1.07'],
+    ['0056',  '元大高股息',     '113年01月17日', '', '', '0.70'],
+    ['00919', '群益台灣精選高息', '113年09月23日', '', '', '0.72'],
+    ['00919', '群益台灣精選高息', '113年06月24日', '', '', '0.70'],
+    ['00919', '群益台灣精選高息', '113年03月18日', '', '', '0.66'],
+    ['00929', '復華台灣科技優息', '113年11月19日', '', '', '0.11'],
+    ['00929', '復華台灣科技優息', '113年10月22日', '', '', '0.14'],
+    ['00929', '復華台灣科技優息', '113年09月19日', '', '', '0.16'],
+    ['00713', '元大台灣高息低波', '113年09月19日', '', '', '1.50'],
+    ['00713', '元大台灣高息低波', '113年06月19日', '', '', '1.50'],
+    ['0050',  '元大台灣50',     '113年07月16日', '', '', '1.00'],
+    ['0050',  '元大台灣50',     '113年01月17日', '', '', '3.00'],
+    ['006208','富邦台50',       '113年11月18日', '', '', '0.90'],
+    ['006208','富邦台50',       '113年07月16日', '', '', '0.78'],
+  ];
+
   // 從證交所抓近 14 個月 ETF 配息公告（startDate/endDate 支援歷史資料）
   async function loadDividendData() {
     const now   = new Date();
@@ -100,11 +123,16 @@ import ReactDOM from 'react-dom/client';
     const fmt = d =>
       `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
     const url = `https://www.twse.com.tw/rwd/zh/ETF/etfDiv?response=json&startDate=${fmt(start)}&endDate=${fmt(now)}`;
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    if (json.status !== 'ok') throw new Error(`TWSE: ${json.status}`);
-    return json;
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (json.status !== 'ok') throw new Error(`TWSE: ${json.status}`);
+      return json;
+    } catch (err) {
+      console.warn('TWSE API direct fetch failed, using fallback dataset:', err);
+      return { status: 'fallback', data: FALLBACK_ETF_DATA };
+    }
   }
 
   // 抓全市場收盤價（TWSE STOCK_DAY_ALL 回傳 CSV）
