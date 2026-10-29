@@ -85,6 +85,9 @@ import {
   function EtfCard({ item, onViewGauge }) {
     const [gaugeOpen, setGaugeOpen] = useState(false);
     const [diagOpen, setDiagOpen] = useState(false);
+    const [divOpen, setDivOpen] = useState(false);
+    const [divHistory, setDivHistory] = useState(null);
+    const [divLoading, setDivLoading] = useState(false);
 
     const isTw = item.isTw;
     const dispCode = (item.code || '').replace(/\.TW$/i, '');
@@ -106,6 +109,49 @@ import {
     const freqColor = freqStr === '月配' ? '#38bdf8' : freqStr === '季配' ? '#4ade80' : freqStr === '週配' ? '#f43f5e' : '#fbbf24';
     const freqBg    = freqStr === '月配' ? 'rgba(56, 189, 248, 0.12)' : freqStr === '季配' ? 'rgba(74, 222, 128, 0.12)' : freqStr === '週配' ? 'rgba(244, 63, 94, 0.15)' : 'rgba(251, 191, 36, 0.12)';
     const freqBorder= freqStr === '月配' ? 'rgba(56, 189, 248, 0.35)' : freqStr === '季配' ? 'rgba(74, 222, 128, 0.35)' : freqStr === '週配' ? 'rgba(244, 63, 94, 0.45)' : 'rgba(251, 191, 36, 0.35)';
+
+    // 動態載入近一年歷史配息紀錄 (透過 Worker 代理 Yahoo Finance)
+    const toggleDivHistory = async () => {
+      if (divOpen) {
+        setDivOpen(false);
+        return;
+      }
+      setDivOpen(true);
+      if (divHistory !== null) return;
+
+      setDivLoading(true);
+      try {
+        const cacheKey = `etf_div_hist_${item.code}`;
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          setDivHistory(JSON.parse(cached));
+          setDivLoading(false);
+          return;
+        }
+
+        const symbol = item.isTw ? (item.code.includes('.') ? item.code : `${item.code}.TW`) : item.code;
+        const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?events=div&range=1y&interval=1d`;
+        const proxyUrl = `${WORKER_URL}/proxy?url=${encodeURIComponent(targetUrl)}`;
+        const res = await fetch(proxyUrl);
+        const json = await res.json();
+        const rawDivs = json?.chart?.result?.[0]?.events?.dividends || {};
+        const list = Object.entries(rawDivs).map(([ts, v]) => {
+          const d = new Date(parseInt(ts, 10) * 1000);
+          const dateStr = d.toISOString().slice(0, 10);
+          return { date: dateStr, amount: Number(v.amount || 0) };
+        }).sort((a, b) => b.date.localeCompare(a.date));
+
+        setDivHistory(list);
+        try {
+          sessionStorage.setItem(cacheKey, JSON.stringify(list));
+        } catch (_) {}
+      } catch (err) {
+        console.warn('Fetch dividend history failed:', err);
+        setDivHistory([]);
+      } finally {
+        setDivLoading(false);
+      }
+    };
 
     return (
       <div
@@ -345,6 +391,24 @@ import {
             <WatchlistButton code={item.code} name={item.name} />
 
             <button
+              onClick={toggleDivHistory}
+              title="查看近一年歷史配息記錄與發薪日"
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: divOpen ? '#ffffff' : '#34d399',
+                background: divOpen ? 'rgba(52, 211, 153, 0.3)' : 'rgba(52, 211, 153, 0.08)',
+                border: `1px solid ${divOpen ? 'rgba(52, 211, 153, 0.5)' : 'rgba(52, 211, 153, 0.3)'}`,
+                borderRadius: 6,
+                padding: '4px 9px',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              💵 近年配息 {divOpen ? '▲' : '▾'}
+            </button>
+
+            <button
               onClick={() => setGaugeOpen(!gaugeOpen)}
               title="查看 SEMA 通道垂直水位計"
               style={{
@@ -395,6 +459,109 @@ import {
             </button>
           </div>
         </div>
+
+        {/* 展開抽屜：近一年配息記錄 (比照 ETF 股利頁面設計) */}
+        {divOpen && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: '12px 14px',
+              borderRadius: 10,
+              background: 'rgba(0, 0, 0, 0.35)',
+              border: '1px solid rgba(52, 211, 153, 0.3)',
+            }}
+          >
+            {divLoading ? (
+              <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: C.dim }}>
+                ⏳ 正在連線讀取近一年除息記錄…
+              </div>
+            ) : divHistory && divHistory.length > 0 ? (
+              <div>
+                {/* 頂部統計指標條 */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 10,
+                    flexWrap: 'wrap',
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: '#f1f5f9' }}>
+                      💵 近 12 個月除息記錄
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: '#34d399',
+                        background: 'rgba(52, 211, 153, 0.12)',
+                        padding: '1px 6px',
+                        borderRadius: 4,
+                      }}
+                    >
+                      共 {divHistory.length} 次除息發薪
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: 12, color: C.mid }}>
+                    近一年累計配息：
+                    <b style={{ color: '#facc15', fontFamily: 'monospace', fontSize: 13.5 }}>
+                      {item.isTw ? 'NT$' : '$'}{divHistory.reduce((s, d) => s + d.amount, 0).toFixed(4)}
+                    </b>
+                    {price > 0 && (
+                      <span style={{ marginLeft: 6, color: '#4ade80', fontWeight: 700 }}>
+                        (近1年實質殖利率 {((divHistory.reduce((s, d) => s + d.amount, 0) / price) * 100).toFixed(2)}%)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 配息格子清單 (比照 ETF 股利頁面的卡片排列) */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))',
+                    gap: 6,
+                    maxHeight: 200,
+                    overflowY: 'auto',
+                    paddingRight: 4,
+                  }}
+                >
+                  {divHistory.map((d, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        background: 'rgba(15, 23, 42, 0.55)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: 8,
+                        padding: '6px 10px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2,
+                      }}
+                    >
+                      <div style={{ fontSize: 10.5, color: '#94a3b8' }}>
+                        {d.date}
+                      </div>
+                      <div style={{ fontSize: 13.5, fontWeight: 800, fontFamily: 'monospace', color: '#f1f5f9' }}>
+                        {item.isTw ? 'NT$' : '$'}{d.amount.toFixed(4)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div style={{ padding: '14px 0', textAlign: 'center', fontSize: 12.5, color: C.dim }}>
+                {div.yield_pct != null
+                  ? `該標的預估年化殖利率約 ${div.yield_pct}%，近一年除息記錄未抓取或為累積型/新發行基金`
+                  : '該標的暫無近一年歷史除息數據'}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 展開抽屜：SEMA 通道垂直水位計 */}
         {gaugeOpen && (
