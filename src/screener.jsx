@@ -117,7 +117,17 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     if (!setup && !chips) return null;
 
     const badges = [];
-    if (setup?.is_pullback_buy) {
+    if (setup?.is_short_bounce) {
+      badges.push(
+        <span key="sb" title="短線低點起漲：強勢股回測短均 + 極度量縮洗盤 + 下影線承接" style={{
+          fontSize:10, fontWeight:700, color:'#fb7185',
+          background:'rgba(244,63,94,0.15)', border:'1px solid rgba(244,63,94,0.45)',
+          borderRadius:4, padding:'1px 5px',
+        }}>
+          🔥 低點起漲
+        </span>
+      );
+    } else if (setup?.is_pullback_buy) {
       badges.push(
         <span key="pb" style={{
           fontSize:10, fontWeight:700, color:'#4ade80',
@@ -336,6 +346,29 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
           <Levels title="壓力" arr={resist}  price={price} dir="up" />
           <Levels title="支撐" arr={support} price={price} dir="down" />
         </div>
+
+        {r.setup?.is_short_bounce && (
+          <div style={{
+            background:'rgba(244,63,94,0.08)', border:'1px solid rgba(244,63,94,0.3)',
+            borderRadius:8, padding:'10px 14px', marginBottom:12,
+            display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:8,
+          }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ fontSize:15 }}>🔥</span>
+              <span style={{ fontSize:13, fontWeight:700, color:'#fda4af' }}>
+                短線低點起漲訊號：回測 {r.setup.pullback_line} 支撐守穩，量縮洗盤完成，尾盤買盤承接！
+              </span>
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:12, fontSize:12, fontFamily:'monospace' }}>
+              <span style={{ color:'#4ade80' }}>
+                短線目標: <b>${r.setup.target_price || (price * 1.04).toFixed(price>=50?1:2)}</b> (+4%)
+              </span>
+              <span style={{ color:'#f87171' }}>
+                防守停損: <b>${r.setup.stop_loss_price || (price * 0.985).toFixed(price>=50?1:2)}</b> (-1.5%)
+              </span>
+            </div>
+          </div>
+        )}
 
         <div style={{ display:'flex', flexWrap:'wrap', gap:'10px 20px', marginBottom:12 }}>
           <Stat label="45日量比" value={sd.vol45Ratio != null ? `${sd.vol45Ratio}×` : '—'}
@@ -581,6 +614,10 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
       const biasMa50 = s5 ? Number(((price - s5.value) / s5.value * 100).toFixed(1)) : 0;
       const isExtended = biasMa50 >= 25.0;
 
+      const vol45 = sd.vol45Ratio || 1.0;
+      const wave = sd.waveState;
+      const closePos = sd.closePos != null ? sd.closePos : 0.5;
+
       const isPb = Boolean(
         (r.rs_rating >= 80) &&
         !isExtended &&
@@ -589,8 +626,24 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
         (r.changePct == null || r.changePct >= -4.0)
       );
 
+      const isSb = Boolean(
+        (r.rs_rating >= 80) &&
+        !isExtended &&
+        ['SEMA1', 'SEMA2', 'SEMA3'].includes(pLine) &&
+        dist != null && dist <= 3.0 &&
+        (r.changePct == null || r.changePct >= -3.5) &&
+        (vol45 <= 0.85 || ['C', 'D'].includes(wave)) &&
+        closePos >= 0.50
+      );
+
+      const targetPrice = Number((price * 1.04).toFixed(price >= 50 ? 1 : 2));
+      const stopPrice   = Number((price * 0.985).toFixed(price >= 50 ? 1 : 2));
+
       setup = {
         is_pullback_buy:  isPb,
+        is_short_bounce:  isSb,
+        target_price:     targetPrice,
+        stop_loss_price:  stopPrice,
         pullback_line:    pLine,
         dist_support_pct: dist,
         is_extended:      isExtended,
@@ -628,11 +681,13 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     ];
 
     const countAll = results.length;
+    const countBounce = results.filter(r => r.setup?.is_short_bounce).length;
     const countPb = results.filter(r => r.setup?.is_pullback_buy).length;
     const countChips = results.filter(r => (r.chips?.it_consec_days >= 3) || r.chips?.is_it_hot).length;
     const countTrend = results.filter(r => r.setup?.trend_template).length;
 
     const filteredResults = results.filter(r => {
+      if (filter === 'bounce') return r.setup?.is_short_bounce;
       if (filter === 'pullback') return r.setup?.is_pullback_buy;
       if (filter === 'chips') return (r.chips?.it_consec_days >= 3) || r.chips?.is_it_hot;
       if (filter === 'trend') return r.setup?.trend_template;
@@ -640,10 +695,11 @@ import { getChangeColor, getWatchlist, addToWatchlist, removeFromWatchlist } fro
     });
 
     const filterButtons = [
-      { key: 'all', label: `全部 (${countAll})` },
+      { key: 'all',      label: `全部 (${countAll})` },
+      { key: 'bounce',   label: `🔥 低點起漲 (${countBounce})` },
       { key: 'pullback', label: `🎯 回測買點 (${countPb})` },
       ...(market === 'tw' ? [{ key: 'chips', label: `⭐ 投信連買 (${countChips})` }] : []),
-      { key: 'trend', label: `🌊 多頭排列 (${countTrend})` },
+      { key: 'trend',    label: `🌊 多頭排列 (${countTrend})` },
     ];
 
     return (
